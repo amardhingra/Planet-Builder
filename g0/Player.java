@@ -1,5 +1,6 @@
 package pb.g0;
 
+import pb.g0.Push;
 import pb.sim.Point;
 import pb.sim.Orbit;
 import pb.sim.Asteroid;
@@ -22,6 +23,10 @@ public class Player implements pb.sim.Player {
 	// number of retries
 	private int retries_per_turn = 1;
 	private int turns_per_retry = 3;
+	
+	private boolean collisionImminent;
+	private long nextCollision;
+	private int n_asteroids;
 
 	// print orbital information
 	public void init(Asteroid[] asteroids, long time_limit)
@@ -29,17 +34,82 @@ public class Player implements pb.sim.Player {
 		if (Orbit.dt() != 24 * 60 * 60)
 			throw new IllegalStateException("Time quantum is not a day");
 		this.time_limit = time_limit;
+		collisionImminent = false;
+		nextCollision = Long.MIN_VALUE;
+		n_asteroids = asteroids.length;
+	}
+	
+	public Push findCollision(Asteroid a1, Asteroid a2, Point collisionPoint, long collisionTime) {
+		Point v1 = a1.orbit.velocityAt(time);
+		Point currentLocation = a1.orbit.positionAt(time);
+		double speed = Math.hypot(v1.x, v1.y);
+		double energy = 0.5 * a1.mass * speed * speed;
+		double[] energies = new double[100];
+		double[] directions = new double[60];
+		double d1 = Math.atan2(currentLocation.y - collisionPoint.y, currentLocation.x - collisionPoint.x);
+		for(int i = 0; i < directions.length; ++i) {
+			directions[i] = d1 + Math.toRadians(30-i);
+		}
+		for(int i = 0; i < energies.length; ++i) {
+			double pushSpeed = speed*(i+1)/100;
+
+			energies[i] = pushSpeed*pushSpeed*0.5*a1.mass;
+			if(energies[i] <0){
+			    System.out.println("pushedSpeed : " + pushSpeed + " , mass " + a1.mass);
+			}
+			for(Double direction : directions) {
+				Asteroid pushed;
+				try {
+					pushed = Asteroid.push(a1, collisionTime, energies[i], direction);
+				} catch (NumberFormatException  | InvalidOrbitException e) {
+					continue;
+				}
+				Point locationAtCollisionTime = pushed.orbit.positionAt(collisionTime+time);
+				double sumRadii = a1.radius() + a2.radius();
+				if(Point.distance(collisionPoint, locationAtCollisionTime) <= sumRadii) {
+					return new Push(energies[i], direction);
+				}
+			}
+		}
+		return null;
 	}
 
 	// try to push asteroid
 	public void play(Asteroid[] asteroids,
 	                 double[] energy, double[] direction)
 	{
-		// if not yet time to push do nothing
-		if (++time <= time_of_push) return;
+		++time;
 		System.out.println("Year: " + (1 + time / 365));
 		System.out.println("Day: "  + (1 + time % 365));
-		for (int retry = 1 ; retry <= retries_per_turn ; ++retry) {
+		if(time < 365) {
+			return;
+		}
+		// if not yet time to push do nothing
+		if (time < nextCollision) {
+			return;
+		} else if(time == nextCollision) {
+			collisionImminent = false;
+		}
+		
+		if(asteroids.length <= 1)
+			return;
+		Asteroid a1 = asteroids[0];
+		Asteroid a2 = asteroids[1];
+		long collisionTime = 1000;
+		Point collisionPoint = a2.orbit.positionAt(time+collisionTime);
+		Push push = findCollision(a1, a2, collisionPoint, collisionTime);
+		if(push == null) {
+			System.out.println("failed");
+		} else {
+			System.out.println("curLoc: " + a1.orbit.positionAt(time));
+			System.out.println("collisionPoint: " + collisionPoint);
+			System.out.println("Push: "+push);
+			energy[0] = push.energy;
+			direction[0] = push.direction;
+			nextCollision = collisionTime + time;
+			collisionImminent = true;
+		}
+/*		for (int retry = 1 ; retry <= retries_per_turn ; ++retry) {
 			// pick a random asteroid and get its velocity
 			int i = random.nextInt(asteroids.length);
 			Point v = asteroids[i].orbit.velocityAt(time);
@@ -55,7 +125,7 @@ public class Player implements pb.sim.Player {
 			// compute energy
 			double E = 0.5 * asteroids[i].mass * v2 * v2;
 			// try to push asteroid
-			Asteroid a1 = null;
+			a1 = null;
 			try {
 				a1 = Asteroid.push(asteroids[i], time, E, d2);
 			} catch (InvalidOrbitException e) {
@@ -67,7 +137,7 @@ public class Player implements pb.sim.Player {
 			// search for collision with other asteroids
 			for (int j = 0 ; j != asteroids.length ; ++j) {
 				if (i == j) continue;
-				Asteroid a2 = asteroids[j];
+				a2 = asteroids[j];
 				double r = a1.radius() + a2.radius();
 				// look 10 years in the future for collision
 				for (long ft = 0 ; ft != 3650 ; ++ft) {
@@ -89,7 +159,7 @@ public class Player implements pb.sim.Player {
 				}
 			}
 			System.out.println("  No collision ...");
-		}
+		}*/
 		time_of_push = time + turns_per_retry;
 	}
 }
