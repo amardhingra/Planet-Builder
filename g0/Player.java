@@ -6,6 +6,7 @@ import pb.sim.Orbit;
 import pb.sim.Asteroid;
 import pb.sim.InvalidOrbitException;
 
+import java.util.Arrays;
 import java.util.Random;
 
 public class Player implements pb.sim.Player {
@@ -44,7 +45,7 @@ public class Player implements pb.sim.Player {
 		Point currentLocation = a1.orbit.positionAt(time);
 		double speed = Math.hypot(v1.x, v1.y);
 		double energy = 0.5 * a1.mass * speed * speed;
-		double[] energies = new double[100];
+		double[] energies = new double[50];
 		double[] directions = new double[60];
 		double d1 = Math.atan2(currentLocation.y - collisionPoint.y, currentLocation.x - collisionPoint.x);
 		for(int i = 0; i < directions.length; ++i) {
@@ -64,10 +65,13 @@ public class Player implements pb.sim.Player {
 				} catch (NumberFormatException  | InvalidOrbitException e) {
 					continue;
 				}
-				Point locationAtCollisionTime = pushed.orbit.positionAt(collisionTime+time);
+				Point locationAtCollisionTime = pushed.orbit.positionAt(collisionTime+time - pushed.epoch);
 				double sumRadii = a1.radius() + a2.radius();
 				if(Point.distance(collisionPoint, locationAtCollisionTime) <= sumRadii) {
-					return new Push(energies[i], direction);
+                    System.out.println(currentLocation);
+                    System.out.println(sumRadii);
+                    System.out.println(Point.distance(collisionPoint, locationAtCollisionTime));
+                    return new Push(energies[i], direction);
 				}
 			}
 		}
@@ -79,8 +83,9 @@ public class Player implements pb.sim.Player {
 	                 double[] energy, double[] direction)
 	{
 		++time;
-		System.out.println("Year: " + (1 + time / 365));
-		System.out.println("Day: "  + (1 + time % 365));
+		if(time % 365 == 0){
+        System.out.println("Year: " + (1 + time / 365));
+		System.out.println("Day: "  + (1 + time % 365));}
 		if(time < 365) {
 			return;
 		}
@@ -93,22 +98,32 @@ public class Player implements pb.sim.Player {
 		
 		if(asteroids.length <= 1)
 			return;
+
+
 		Asteroid a1 = asteroids[0];
 		Asteroid a2 = asteroids[1];
+
 		long collisionTime = 1000;
-		Point collisionPoint = a2.orbit.positionAt(time+collisionTime);
-		Push push = findCollision(a1, a2, collisionPoint, collisionTime);
-		if(push == null) {
-			System.out.println("failed");
+
+        Point collisionPoint = a2.orbit.positionAt(time + collisionTime - a2.epoch);
+
+        Push push = findCollision(a1, a2, collisionPoint, collisionTime);
+
+        if(push == null) {
+			//System.out.println("failed");
 		} else {
 			System.out.println("curLoc: " + a1.orbit.positionAt(time));
 			System.out.println("collisionPoint: " + collisionPoint);
 			System.out.println("Push: "+push);
+            System.out.println("Year: " + (1 + time / 365));
+            System.out.println("Day: "  + (1 + time % 365));
 			energy[0] = push.energy;
 			direction[0] = push.direction;
 			nextCollision = collisionTime + time;
 			collisionImminent = true;
 		}
+
+        //System.out.println(Arrays.toString(energy));
 /*		for (int retry = 1 ; retry <= retries_per_turn ; ++retry) {
 			// pick a random asteroid and get its velocity
 			int i = random.nextInt(asteroids.length);

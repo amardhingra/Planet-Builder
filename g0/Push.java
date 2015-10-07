@@ -4,7 +4,7 @@ public class Push {
 	public double direction;
 	public double energy;
 
-	public Push(double direction, double energy) {
+	public Push(double energy, double direction) {
 		super();
 		this.direction = direction;
 		this.energy = energy;
