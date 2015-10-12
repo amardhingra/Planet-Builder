@@ -41,8 +41,8 @@ public class Player implements pb.sim.Player {
 	}
 	
 	public Push findCollision(Asteroid a1, Asteroid a2, Point collisionPoint, long collisionTime) {
-		Point v1 = a1.orbit.velocityAt(time);
-		Point currentLocation = a1.orbit.positionAt(time);
+		Point v1 = a1.orbit.velocityAt(time - a1.epoch);
+		Point currentLocation = a1.orbit.positionAt(time - a1.epoch);
 		double speed = Math.hypot(v1.x, v1.y);
 		double energy = 0.5 * a1.mass * speed * speed;
 		double[] energies = new double[50];
@@ -61,9 +61,12 @@ public class Player implements pb.sim.Player {
 			for(Double direction : directions) {
 				Asteroid pushed;
 				try {
-					pushed = Asteroid.push(a1, collisionTime, energies[i], direction);
-				} catch (NumberFormatException  | InvalidOrbitException e) {
+					pushed = Asteroid.push(a1, time, energies[i], direction);
+				} catch (InvalidOrbitException e) {
 					continue;
+				}
+				if(pushed.epoch != time) {
+					System.out.println("epoch: "+pushed.epoch);
 				}
 				Point locationAtCollisionTime = pushed.orbit.positionAt(collisionTime+time - pushed.epoch);
 				double sumRadii = a1.radius() + a2.radius();
