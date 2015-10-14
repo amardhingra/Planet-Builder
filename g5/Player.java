@@ -6,6 +6,9 @@ import pb.sim.Asteroid;
 import pb.sim.InvalidOrbitException;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Random;
 
 public class Player implements pb.sim.Player {
@@ -19,9 +22,9 @@ public class Player implements pb.sim.Player {
 	private boolean collisionImminent;
 	private long nextCollision;
 	private int n_asteroids;
-	
+	private int n_asteroid_At_Start;
 	private Integer[] closestPair;
-	
+	double maxPower;
 	int pushed = -1;
 
 	// print orbital information
@@ -30,9 +33,11 @@ public class Player implements pb.sim.Player {
 		if (Orbit.dt() != 24 * 60 * 60)
 			throw new IllegalStateException("Time quantum is not a day");
 		this.time_limit = time_limit;
+		maxPower=36.5;
 		collisionImminent = false;
 		nextCollision = Long.MIN_VALUE;
 		n_asteroids = asteroids.length;
+		n_asteroid_At_Start = asteroids.length;
 		closestPair = null;
 	}
 	
@@ -65,9 +70,9 @@ public class Player implements pb.sim.Player {
 		a1 = asteroids[target];
 		a2 = null;
 		Point p1, p2;
-		p1 = a1.orbit.positionAt(time - a1.epoch);
 		p2 = null;
 		for(long t = 0; t <= 1000; ++t) {
+			p1 = a1.orbit.positionAt(time+t - a1.epoch);
 			for(int i = 0; i < asteroids.length; ++i) {
 				if(i == target)
 					continue;
@@ -96,6 +101,17 @@ public class Player implements pb.sim.Player {
 		return index;
 	}
 
+	private PriorityQueue<Asteroid> getFarthestAsteroid(Asteroid[] asteroids) {
+		PriorityQueue<Asteroid> maxRadiusAsteroidsHeap=new PriorityQueue<Asteroid>(asteroids.length,new AsteroidComparator() );
+		
+		double maxRadius = Double.MIN_VALUE;
+		int index = -1;
+		for(int i = 0; i < asteroids.length; ++i) {
+			maxRadiusAsteroidsHeap.add(asteroids[i]);
+		}
+		return maxRadiusAsteroidsHeap;
+	}
+	
 	// try to push asteroid
 	public void play(Asteroid[] asteroids,
 	                 double[] energy, double[] direction)
@@ -119,16 +135,117 @@ public class Player implements pb.sim.Player {
 			Point p2 = a2.orbit.positionAt(time-a2.epoch);
 			if(Point.distance(p1, p2) > a1.radius()+a2.radius()) {
 				System.out.println(Point.distance(p1,p2));
-				System.exit(0);
+				//System.exit(0);
 			}
 		}
 			
 		if(collisionImminent) {
 			return;
 		}
-			
-		int heaviest = getHeaviestAsteroid(asteroids);
-		closestPair = getClosestApproachToTargetWithinTime(asteroids, heaviest, time+1000);
+		
+		 int heaviest=0;
+		PriorityQueue<Asteroid> farthestAsteroids= getFarthestAsteroid(asteroids);
+		Map<Asteroid, Integer> aToIndex=new HashMap<Asteroid, Integer>();
+		for(int i =0; i< asteroids.length; i++){
+			aToIndex.put(asteroids[i], i);
+		}
+	
+		
+		if(n_asteroids > n_asteroid_At_Start-5){
+			Asteroid a=farthestAsteroids.poll();
+			heaviest=aToIndex.get(a);
+			if(time==0){
+				for(int index=0; index < Math.min(n_asteroid_At_Start *0.5, 10);index++) {
+					Point vel = a.orbit.velocityAt(time-a.epoch);
+					double asteroidEnergy = 0.5*vel.magnitude()*vel.magnitude()*a.mass;
+					double curDir = Math.atan2(vel.y, vel.x);
+					double pushDir = curDir + Math.PI/2;
+					energy[heaviest] = asteroidEnergy*0.2;
+					while(energy[heaviest] > Math.pow(10,35)){
+						energy[heaviest]=energy[heaviest]/10;
+					}
+					direction[heaviest] = pushDir;
+					
+					a=farthestAsteroids.poll();
+					heaviest=aToIndex.get(a);
+				}
+				return;
+			}	
+			for(int trytop10Orbits=0;trytop10Orbits < n_asteroid_At_Start *0.2 && trytop10Orbits <asteroids.length ;trytop10Orbits ++ ){
+				if(trytop10Orbits%5!=time%5){
+					continue;
+				}
+				GD_Response gdResp =doPushWithGradientDescent(  asteroids, energy,  direction ,  heaviest);
+				if(gdResp==null) {
+					continue;
+				}
+				GradientDescent gd=gdResp.getGd();
+				 
+				Push p = gd.tune();
+			 
+				if(p != null ) {
+					if(p.energy > Math.pow(10, maxPower) ){
+						return;
+					}
+					int i = gdResp.getPushedIndex();
+					energy[i] = p.energy;
+				
+					direction[i] = p.direction;
+					collisionImminent = true;
+					nextCollision = time + gd.predictedTime;
+					return;
+				} 
+				a=farthestAsteroids.poll();
+				heaviest=aToIndex.get(a);
+			}
+			return;
+			//heaviest = getHeaviestAsteroid(asteroids);
+		}else{
+			heaviest = getHeaviestAsteroid(asteroids);
+		}
+		GD_Response gdResp =doPushWithGradientDescent(  asteroids, energy,  direction ,  heaviest);
+		if(gdResp==null) {
+			return;
+		}
+		GradientDescent gd=gdResp.getGd();
+		Push p = gd.tune();
+		if(p != null) {
+			if(p.energy > Math.pow(10, maxPower) ){
+				return;
+			}
+			int i = gdResp.getPushedIndex();
+			energy[i] = p.energy;
+			direction[i] = p.direction;
+			collisionImminent = true;
+			nextCollision = time + gd.predictedTime;
+			return;
+		} 
+ 
+	}
+	
+
+    private double l2norm(Point p) {return Math.sqrt(p.x*p.x+p.y*p.y);}
+    private double l2norm(double x, double y) {return Math.sqrt(x*x+y*y);}
+    
+	public boolean isAsteroidInRange(Asteroid heavy, Asteroid lighter){
+		Point v1 = heavy.orbit.velocityAt(time - heavy.epoch);
+		double normv1 = l2norm(v1);
+		double theta1 = Math.atan2(v1.y,v1.x);
+		
+		Point v2 = lighter.orbit.velocityAt(time - lighter.epoch);
+		double normv2 = l2norm(v2);
+		double theta2 = Math.atan2(v2.y,v2.x);
+		if( Math.abs(theta1-theta2) < Math.PI/3  ) {
+			System.out.println("Asteroids are in Range ");
+			return true;
+		} else{
+			System.out.println("Asteroids are not in range");
+			return false;
+		}
+	}
+	private GD_Response doPushWithGradientDescent(Asteroid[] asteroids,
+            double[] energy, double[] direction , int heaviestOrFathest ){
+		closestPair = getClosestApproachToTargetWithinTime(asteroids, heaviestOrFathest, time);
 		Asteroid a1 = asteroids[closestPair[0]];
 		Asteroid a2 = asteroids[closestPair[1]];
 		int pushedIndex = closestPair[0];
@@ -138,17 +255,12 @@ public class Player implements pb.sim.Player {
 			a2 = temp;
 			pushedIndex = closestPair[1];
 		}
+ 
+		 if( isAsteroidInRange(a1.mass>a2.mass? a1:a2,a1.mass>a2.mass? a2:a1) ==false){
+			 return null;
+		 }
 		GradientDescent gd = new GradientDescent(a1, a2, time);
-		Push p = gd.tune();
-		if(p != null) {
-			int i = pushedIndex;
-			energy[i] = p.energy;
-			direction[i] = p.direction;
-			collisionImminent = true;
-			nextCollision = time + gd.predictedTime;
-			return;
-		} else if (1 > 0) {
-			return;
-		}
+		return  new GD_Response( gd,  pushedIndex) ;
+		//return gd;
 	}
 }
