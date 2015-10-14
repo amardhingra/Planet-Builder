@@ -155,7 +155,7 @@ public class Player implements pb.sim.Player {
 			Asteroid a=farthestAsteroids.poll();
 			heaviest=aToIndex.get(a);
 			if(time==0){
-				for(int index=0; index < Math.min(n_asteroid_At_Start *0.5, 10);index++) {
+				for(int index=0; index < Math.min(n_asteroid_At_Start *0.5, 5);index++) {
 					Point vel = a.orbit.velocityAt(time-a.epoch);
 					double asteroidEnergy = 0.5*vel.magnitude()*vel.magnitude()*a.mass;
 					double curDir = Math.atan2(vel.y, vel.x);
@@ -235,7 +235,7 @@ public class Player implements pb.sim.Player {
 		Point v2 = lighter.orbit.velocityAt(time - lighter.epoch);
 		double normv2 = l2norm(v2);
 		double theta2 = Math.atan2(v2.y,v2.x);
-		if( Math.abs(theta1-theta2) < Math.PI/3  ) {
+		if( Math.abs(theta1-theta2) < Math.PI/6  ) {
 			System.out.println("Asteroids are in Range ");
 			return true;
 		} else{
