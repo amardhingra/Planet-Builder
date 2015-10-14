@@ -128,7 +128,9 @@ public class Orbit implements Iterable <Point> {
 		for (;;) {
 			// f(x) = x - e sin(x) - M
 			double fE = E - e * Math.sin(E) - M;
-			if (Math.abs(fE) < 1.0e-12) break;
+			if (Math.abs(fE) < 1.0e-12 ) break;
+			if(Double.isNaN(fE) || Double.isNaN(Math.abs(fE))) 
+				break;
 			// f'(x) = 1 - e cos(x)
 			E -= fE / (1.0 - e * Math.cos(E));
 		}
