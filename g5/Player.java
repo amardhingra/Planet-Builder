@@ -35,11 +35,11 @@ public class Player implements pb.sim.Player {
             throw new IllegalStateException("Time quantum is not a day");
         this.time_limit = time_limit;
 
+        // calculating the maximum energy to use per push
         Asteroid[] sortedByRadius = Utils.sortByRadius(asteroids);
         double maxHohmmannEnergy = Hohmann.transfer(sortedByRadius[sortedByRadius.length - 1], sortedByRadius[0].orbit.a);
-
-
         maxPower = maxHohmmannEnergy;
+
         collisionImminent = false;
         nextCollision = Long.MIN_VALUE;
         n_asteroids = asteroids.length;
@@ -147,7 +147,8 @@ public class Player implements pb.sim.Player {
         if (collisionImminent) {
             return;
         }
-
+        int heaviest = 0;
+/*
         int heaviest = 0;
         PriorityQueue<Asteroid> farthestAsteroids = getFarthestAsteroid(asteroids);
         Map<Asteroid, Integer> aToIndex = new HashMap<Asteroid, Integer>();
@@ -160,7 +161,7 @@ public class Player implements pb.sim.Player {
             Asteroid a = farthestAsteroids.poll();
             heaviest = aToIndex.get(a);
             if (time == 0) {
-                /*for (int index = 0; index < Math.min(n_asteroid_At_Start * 0.5, 5); index++) {
+                for (int index = 0; index < Math.min(n_asteroid_At_Start * 0.5, 5); index++) {
                     Point vel = a.orbit.velocityAt(time - a.epoch);
                     double asteroidEnergy = 0.5 * vel.magnitude() * vel.magnitude() * a.mass;
                     double curDir = Math.atan2(vel.y, vel.x);
@@ -173,7 +174,7 @@ public class Player implements pb.sim.Player {
 
                     a = farthestAsteroids.poll();
                     heaviest = aToIndex.get(a);
-                }*/
+                }
                 return;
             }
             for (int trytop10Orbits = 0; trytop10Orbits < n_asteroid_At_Start * 0.2 && trytop10Orbits < asteroids.length; trytop10Orbits++) {
@@ -208,6 +209,7 @@ public class Player implements pb.sim.Player {
         } else {
             heaviest = getHeaviestAsteroid(asteroids);
         }
+        */
         heaviest = getHeaviestAsteroid(asteroids);
         GD_Response gdResp = doPushWithGradientDescent(asteroids, energy, direction, heaviest);
         if (gdResp == null) {
