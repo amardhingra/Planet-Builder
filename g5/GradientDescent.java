@@ -172,7 +172,7 @@ public class GradientDescent {
 				dh = getClosestDistanceVaryTime(higher, timeOfStart);
 			} catch (InvalidOrbitException | NumberFormatException e) {
 				System.out.println("push direction : " + pushDirection);
-				e.printStackTrace();
+				//e.printStackTrace();
 				return currentEnergy	;
 				// do nothing;
 			}
@@ -181,7 +181,7 @@ public class GradientDescent {
 				dl = getClosestDistanceVaryTime(lower, timeOfStart);
 			} catch (InvalidOrbitException | NumberFormatException e) {
 				System.out.println("push direction : " + pushDirection);
-				e.printStackTrace();
+				//e.printStackTrace();
 				return currentEnergy;
 				// do nothing;
 			}
