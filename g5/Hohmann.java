@@ -33,6 +33,31 @@ public class Hohmann {
         return Math.atan2(p1.y, p1.x);
     }
 
+    public static int getLowestAverageHohmanTransfer(Asteroid[] asteroids){
+
+        int bestIndex = -1;
+        double bestEnergy = Double.MAX_VALUE;
+
+        for(int i = 0; i < asteroids.length; ++i){
+            double energySum = 0;
+            for(int j = 0; j < asteroids.length; ++j){
+                if(i == j) continue;
+                energySum += transfer(asteroids[j], asteroids[i].orbit.a);
+            }
+
+            energySum /= asteroids[i].mass;
+
+            if(energySum < bestEnergy){
+                bestEnergy = energySum;
+                bestIndex = i;
+            }
+
+        }
+
+        return bestIndex;
+
+    }
+
     public static Push findTransferByTime(Asteroid asteroid, Asteroid collideWith, long currentTime, long collideWithin){
 
         Push bestPush = null;

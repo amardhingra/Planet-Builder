@@ -34,6 +34,20 @@ public class Utils {
         return massAsteroids;
     }
 
+    public static Asteroid[] sortByHohmannTransferEnergy(Asteroid[] asteroids, Asteroid collideWith){
+
+        Asteroid[] hohmannAsteroids = Arrays.copyOf(asteroids, asteroids.length);
+        Arrays.sort(hohmannAsteroids, new Comparator<Asteroid>() {
+            @Override
+            public int compare(Asteroid o1, Asteroid o2) {
+                return Double.compare(Hohmann.transfer(o1, collideWith.orbit.a),
+                        Hohmann.transfer(o1, collideWith.orbit.a));
+            }
+        });
+
+        return hohmannAsteroids;
+    }
+
     public static int findIndexOfAsteroid(Asteroid[] asteroids, long id){
         for(int i = 0; i < asteroids.length; i++){
             if(id == asteroids[i].id){
@@ -74,6 +88,17 @@ public class Utils {
                 largest = a.id;
         }
         return largest;
+    }
+
+    public static double getEnergyMultiplier(int initAsteroids, int n_asteroids, long time_limit, long time){
+
+        double asteroidsRemaining = n_asteroids / (double) initAsteroids;
+        double timeRemaining = (time_limit - time)/(double) time_limit;
+
+        if(time % 10 == 0)
+        System.err.println(timeRemaining/asteroidsRemaining);
+
+        return 1;
     }
 
 }

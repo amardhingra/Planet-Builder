@@ -9,13 +9,15 @@ public class GradientDescent {
 	Asteroid a;
 	Asteroid target;
 	long timeOfStart, predictedTime;
+	double maxEnergy;
 
-	public GradientDescent(Asteroid a, Asteroid target, long time) {
+	public GradientDescent(Asteroid a, Asteroid target, long time, double maxEnergy) {
 		super();
 		this.a = a;
 		this.target = target;
 		timeOfStart = time;
 		this.predictedTime = 0;
+		this.maxEnergy = maxEnergy;
 	}
 	
 	public Push tune() {
@@ -163,7 +165,7 @@ public class GradientDescent {
 			delta = currentEnergy/2;
 		}
 		int count = 0;
-		while(delta >= asteroidEnergy * 0.01) {
+		while(delta >= asteroidEnergy * 0.01 && currentEnergy + delta  < maxEnergy) {
 			double dh = Double.MAX_VALUE;
 			double dl = Double.MAX_VALUE;
 			++count;

@@ -38,8 +38,7 @@ public class Player implements pb.sim.Player {
         // calculating the maximum energy to use per push
         Asteroid[] sortedByRadius = Utils.sortByRadius(asteroids);
         double maxHohmmannEnergy = Hohmann.transfer(sortedByRadius[sortedByRadius.length - 1], sortedByRadius[0].orbit.a);
-        maxPower = maxHohmmannEnergy;
-
+        maxPower = maxHohmmannEnergy;//* Math.sqrt(time_limit) / Math.pow(asteroids.length, 2) ;
         collisionImminent = false;
         nextCollision = Long.MIN_VALUE;
         n_asteroids = asteroids.length;
@@ -75,15 +74,14 @@ public class Player implements pb.sim.Player {
         Asteroid a1, a2;
         a1 = asteroids[target];
         a2 = null;
-        Point p1, p2;
-        p2 = null;
+        Point p1 = new Point(), p2 = new Point();
         for (long t = 0; t <= 1000; ++t) {
-            p1 = a1.orbit.positionAt(time + t - a1.epoch);
+            a1.orbit.positionAt(time + t - a1.epoch, p1);
             for (int i = 0; i < asteroids.length; ++i) {
                 if (i == target)
                     continue;
                 a2 = asteroids[i];
-                p2 = a2.orbit.positionAt(time + t - a2.epoch);
+                a2.orbit.positionAt(time + t - a2.epoch, p2);
                 double dist = Point.distance(p1, p2);
                 if (dist < closestDist) {
                     closestDist = dist;
@@ -148,69 +146,11 @@ public class Player implements pb.sim.Player {
             return;
         }
         int heaviest = 0;
-/*
-        int heaviest = 0;
-        PriorityQueue<Asteroid> farthestAsteroids = getFarthestAsteroid(asteroids);
-        Map<Asteroid, Integer> aToIndex = new HashMap<Asteroid, Integer>();
-        for (int i = 0; i < asteroids.length; i++) {
-            aToIndex.put(asteroids[i], i);
-        }
 
-
-        if (n_asteroids > n_asteroid_At_Start - 5) {
-            Asteroid a = farthestAsteroids.poll();
-            heaviest = aToIndex.get(a);
-            if (time == 0) {
-                for (int index = 0; index < Math.min(n_asteroid_At_Start * 0.5, 5); index++) {
-                    Point vel = a.orbit.velocityAt(time - a.epoch);
-                    double asteroidEnergy = 0.5 * vel.magnitude() * vel.magnitude() * a.mass;
-                    double curDir = Math.atan2(vel.y, vel.x);
-                    double pushDir = curDir + Math.PI / 2;
-                    energy[heaviest] = asteroidEnergy * 0.2;
-                    while (energy[heaviest] > Math.pow(10, 35)) {
-                        energy[heaviest] = energy[heaviest] / 10;
-                    }
-                    direction[heaviest] = pushDir;
-
-                    a = farthestAsteroids.poll();
-                    heaviest = aToIndex.get(a);
-                }
-                return;
-            }
-            for (int trytop10Orbits = 0; trytop10Orbits < n_asteroid_At_Start * 0.2 && trytop10Orbits < asteroids.length; trytop10Orbits++) {
-                if (trytop10Orbits % 5 != time % 5) {
-                    continue;
-                }
-                GD_Response gdResp = doPushWithGradientDescent(asteroids, energy, direction, heaviest);
-                if (gdResp == null) {
-                    continue;
-                }
-                GradientDescent gd = gdResp.getGd();
-
-                Push p = gd.tune();
-
-                if (p != null) {
-                    if (p.energy > maxPower) {
-                        continue;
-                    }
-                    int i = gdResp.getPushedIndex();
-                    energy[i] = p.energy;
-
-                    direction[i] = p.direction;
-                    collisionImminent = true;
-                    nextCollision = time + gd.predictedTime;
-                    return;
-                }
-                a = farthestAsteroids.poll();
-                heaviest = aToIndex.get(a);
-            }
-            return;
-            //heaviest = getHeaviestAsteroid(asteroids);
-        } else {
+        if(n_asteroid_At_Start == n_asteroids)
+            heaviest = Hohmann.getLowestAverageHohmanTransfer(asteroids);
+        else
             heaviest = getHeaviestAsteroid(asteroids);
-        }
-        */
-        heaviest = getHeaviestAsteroid(asteroids);
         GD_Response gdResp = doPushWithGradientDescent(asteroids, energy, direction, heaviest);
         if (gdResp == null) {
             return;
@@ -259,6 +199,9 @@ public class Player implements pb.sim.Player {
 
     private GD_Response doPushWithGradientDescent(Asteroid[] asteroids,
                                                   double[] energy, double[] direction, int heaviestOrFathest) {
+
+        double energyMultiplier = Utils.getEnergyMultiplier(n_asteroid_At_Start, n_asteroids, time_limit, time);
+
         closestPair = getClosestApproachToTargetWithinTime(asteroids, heaviestOrFathest, time);
         Asteroid a1 = asteroids[closestPair[0]];
         Asteroid a2 = asteroids[closestPair[1]];
@@ -273,8 +216,7 @@ public class Player implements pb.sim.Player {
         if (isAsteroidInRange(a1.mass > a2.mass ? a1 : a2, a1.mass > a2.mass ? a2 : a1) == false) {
             return null;
         }
-        GradientDescent gd = new GradientDescent(a1, a2, time);
+        GradientDescent gd = new GradientDescent(a1, a2, time,energyMultiplier * maxPower);
         return new GD_Response(gd, pushedIndex);
-        //return gd;
     }
 }
