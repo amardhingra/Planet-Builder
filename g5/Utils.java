@@ -2,7 +2,8 @@ package pb.g5;
 
 import pb.sim.Asteroid;
 import pb.sim.Point;
-
+import pb.g5.Push;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 
@@ -90,15 +91,38 @@ public class Utils {
         return largest;
     }
 
-    public static double getEnergyMultiplier(int initAsteroids, int n_asteroids, long time_limit, long time){
+    public static double getEnergyMultiplier(ArrayList<Push> pushes, double maxEnergy,
+                                             int initAsteroids, int n_asteroids,
+                                             long time_limit, long time, int daysSinceCollision){
+
 
         double asteroidsRemaining = n_asteroids / (double) initAsteroids;
         double timeRemaining = (time_limit - time)/(double) time_limit;
 
-        if(time % 10 == 0)
-        System.err.println(timeRemaining/asteroidsRemaining);
+        double energyMultiplier = Math.sqrt(asteroidsRemaining) / Math.pow(timeRemaining, 2);
 
-        return 1;
+        if(pushes.size() > 0 && (time_limit - time)/365 > 100) {
+            double totalEnergySpent = 0;
+            for (Push p : pushes) {
+                totalEnergySpent += p.energy;
+            }
+            double averageEnergy = totalEnergySpent / pushes.size();
+            energyMultiplier *= (averageEnergy/maxEnergy);
+        }
+
+        if((time_limit - time)/365 <= 20){
+            energyMultiplier *= Math.pow(1.05, daysSinceCollision);
+        } else if ((time_limit - time)/365 <= 50){
+            energyMultiplier *= Math.pow(1.01, daysSinceCollision);
+        } else if ((time_limit - time)/365 <= 100){
+            energyMultiplier *= Math.pow(1.005, daysSinceCollision);
+        } else if ((time_limit - time)/365 <= 250){
+            energyMultiplier *= Math.pow(1.001, daysSinceCollision);
+        } else {
+            energyMultiplier *= Math.pow(1.0001, daysSinceCollision);
+        }
+
+        return energyMultiplier;
     }
 
 }

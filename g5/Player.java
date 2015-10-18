@@ -7,11 +7,7 @@ import pb.sim.Orbit;
 import pb.sim.Asteroid;
 import pb.sim.InvalidOrbitException;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.PriorityQueue;
-import java.util.Random;
+import java.util.*;
 
 public class Player implements pb.sim.Player {
 
@@ -28,6 +24,9 @@ public class Player implements pb.sim.Player {
     private Integer[] closestPair;
     double maxPower;
     int pushed = -1;
+    int daysSinceCollision = 0;
+
+    ArrayList<Push> pushes;
 
     // print orbital information
     public void init(Asteroid[] asteroids, long time_limit) {
@@ -39,6 +38,9 @@ public class Player implements pb.sim.Player {
         Asteroid[] sortedByRadius = Utils.sortByRadius(asteroids);
         double maxHohmmannEnergy = Hohmann.transfer(sortedByRadius[sortedByRadius.length - 1], sortedByRadius[0].orbit.a);
         maxPower = maxHohmmannEnergy;//* Math.sqrt(time_limit) / Math.pow(asteroids.length, 2) ;
+
+        pushes = new ArrayList<>();
+
         collisionImminent = false;
         nextCollision = Long.MIN_VALUE;
         n_asteroids = asteroids.length;
@@ -120,6 +122,7 @@ public class Player implements pb.sim.Player {
     public void play(Asteroid[] asteroids,
                      double[] energy, double[] direction) {
         ++time;
+        ++daysSinceCollision;
 
         if (time % 365 == 0) {
             System.out.println("Year: " + (1 + time / 365));
@@ -129,6 +132,7 @@ public class Player implements pb.sim.Player {
         if (asteroids.length < n_asteroids) {
             collisionImminent = false;
             --n_asteroids;
+            daysSinceCollision = 0;
         }
 
         if (collisionImminent && time == nextCollision) {
@@ -158,9 +162,7 @@ public class Player implements pb.sim.Player {
         GradientDescent gd = gdResp.getGd();
         Push p = gd.tune();
         if (p != null) {
-            if (p.energy > maxPower) {
-                return;
-            }
+            pushes.add(p);
             int i = gdResp.getPushedIndex();
             energy[i] = p.energy;
             direction[i] = p.direction;
@@ -200,7 +202,7 @@ public class Player implements pb.sim.Player {
     private GD_Response doPushWithGradientDescent(Asteroid[] asteroids,
                                                   double[] energy, double[] direction, int heaviestOrFathest) {
 
-        double energyMultiplier = Utils.getEnergyMultiplier(n_asteroid_At_Start, n_asteroids, time_limit, time);
+        double energyMultiplier = Utils.getEnergyMultiplier(pushes, maxPower, n_asteroid_At_Start, n_asteroids, time_limit, time, daysSinceCollision);
 
         closestPair = getClosestApproachToTargetWithinTime(asteroids, heaviestOrFathest, time);
         Asteroid a1 = asteroids[closestPair[0]];
@@ -216,7 +218,8 @@ public class Player implements pb.sim.Player {
         if (isAsteroidInRange(a1.mass > a2.mass ? a1 : a2, a1.mass > a2.mass ? a2 : a1) == false) {
             return null;
         }
-        GradientDescent gd = new GradientDescent(a1, a2, time,energyMultiplier * maxPower);
+
+        GradientDescent gd = new GradientDescent(a1, a2, time, energyMultiplier * maxPower);
         return new GD_Response(gd, pushedIndex);
     }
 }
