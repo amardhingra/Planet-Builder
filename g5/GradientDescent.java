@@ -2,7 +2,6 @@ package pb.g5;
 
 import pb.sim.Asteroid;
 import pb.sim.InvalidOrbitException;
-import pb.sim.Orbit;
 import pb.sim.Point;
 
 public class GradientDescent {
@@ -127,12 +126,14 @@ public class GradientDescent {
 				dh = getClosestDistanceVaryTime(higher, timeOfStart);
 			} catch(InvalidOrbitException e) {
 				// do nothing;
+				dh = Double.MAX_VALUE;
 			}
 			try {
 				Asteroid lower = Asteroid.push(a, timeOfStart, pushEnergy, currentDirection - delta);
 				dl = getClosestDistanceVaryTime(lower, timeOfStart);
 			} catch (InvalidOrbitException e) {
 				// do nothing;
+				dl = Double.MAX_VALUE;
 			}
 			
 			if(dh < current) {
@@ -150,7 +151,7 @@ public class GradientDescent {
 					delta = 0;
 			}
 		}
-		System.out.println("DirectionCount: "+count);
+//		System.out.println("DirectionCount: "+count);
 		return angleDel;
 	}
 	
@@ -173,19 +174,21 @@ public class GradientDescent {
 				Asteroid higher = Asteroid.push(a, timeOfStart, currentEnergy + delta, pushDirection);
 				dh = getClosestDistanceVaryTime(higher, timeOfStart);
 			} catch (InvalidOrbitException | NumberFormatException e) {
-				System.out.println("push direction : " + pushDirection);
+//				System.out.println("push direction : " + pushDirection);
 				//e.printStackTrace();
-				return currentEnergy	;
+//				return currentEnergy	;
 				// do nothing;
+				dh = Double.MAX_VALUE;
 			}
 			try {
 				Asteroid lower = Asteroid.push(a, timeOfStart, currentEnergy - delta, pushDirection);
 				dl = getClosestDistanceVaryTime(lower, timeOfStart);
 			} catch (InvalidOrbitException | NumberFormatException e) {
-				System.out.println("push direction : " + pushDirection);
+//				System.out.println("push direction : " + pushDirection);
 				//e.printStackTrace();
-				return currentEnergy;
+//				return currentEnergy;
 				// do nothing;
+				dl = Double.MAX_VALUE;
 			}
 
 			if(dl <= current) {
@@ -207,7 +210,7 @@ public class GradientDescent {
 				delta = currentEnergy/2;
 			}
 		}
-		System.out.println("EnergyCount: "+count);
+//		System.out.println("EnergyCount: "+count);
 		return currentEnergy;
 	}
 	
