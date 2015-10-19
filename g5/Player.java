@@ -12,7 +12,7 @@ import java.util.*;
 
 public class Player implements pb.sim.Player {
 
-    // used to pick asteroid and velocity boost randomly
+    public static final int NUMBER_OF_COLLIDING_ASTEROIDS = 5;
 
     // current time, time limit
     private long time = -1;
@@ -71,7 +71,24 @@ public class Player implements pb.sim.Player {
         return pair;
     }
 
+    private Asteroid[] getBestCollidingGroup(Asteroid[] asteroids, int target){
+
+        Asteroid a1 = asteroids[target];
+        //Asteroid[]  hohmannAsteroids = Utils.sortByHohmannTransferEnergy(asteroids, a1);
+
+        Asteroid[] bestAsteroids = new Asteroid[Math.min(NUMBER_OF_COLLIDING_ASTEROIDS, asteroids.length)];
+
+        for(int i = 0; i < bestAsteroids.length; ++i){
+            int index = Utils.getClosestApproachToTargetWithinTime(asteroids, target, time);
+            bestAsteroids[i] = asteroids[index];//hohmannAsteroids[i];
+            asteroids[index] = null;
+        }
+
+        return bestAsteroids;
+    }
+
     private Integer[] getClosestApproachToTargetWithinTime(Asteroid[] asteroids, int target, long time) {
+
         double closestDist = Double.MAX_VALUE;
         Integer[] pair = new Integer[2];
         Asteroid a1, a2;
@@ -131,20 +148,21 @@ public class Player implements pb.sim.Player {
         }
 
         if (asteroids.length < n_asteroids) {
+            System.err.println(time + " collision");
             collisionImminent = false;
             --n_asteroids;
             daysSinceCollision = 0;
         }
 
         if (collisionImminent && time == nextCollision) {
-            Asteroid a1 = asteroids[closestPair[0]];
+            /*Asteroid a1 = asteroids[closestPair[0]];
             Point p1 = a1.orbit.positionAt(time - a1.epoch);
             Asteroid a2 = asteroids[closestPair[1]];
             Point p2 = a2.orbit.positionAt(time - a2.epoch);
             if (Point.distance(p1, p2) > a1.radius() + a2.radius()) {
                 System.out.println(Point.distance(p1, p2));
                 //System.exit(0);
-            }
+            }*/
         }
 
         if (collisionImminent) {
@@ -156,8 +174,39 @@ public class Player implements pb.sim.Player {
             heaviest = Hohmann.getLowestAverageHohmanTransfer(asteroids);
         else
             heaviest = getHeaviestAsteroid(asteroids);
-        GD_Response gdResp = doPushWithGradientDescent(asteroids, energy, direction, heaviest);
-        if (gdResp == null) {
+        GD_Response[] gdResp = doPushWithGradientDescent(asteroids, energy, direction, heaviest);
+        Push bestPush = null;
+        GradientDescent bestGD = null;
+        GD_Response bestGDResponse = null;
+        for(GD_Response response : gdResp){
+            if(gdResp == null){
+                System.err.println("Returning?");
+                return;
+            }
+            GradientDescent gd = response.getGd();
+            Push p = gd.tune();
+
+            System.err.println(time + " " + p);
+            if(p == null) continue;
+
+            if(bestPush == null || bestPush.energy > p.energy){
+                bestPush = p;
+                bestGD = gd;
+                bestGDResponse = response;
+            }
+        }
+
+        if (bestPush != null) {
+            pushes.add(bestPush);
+            int i = bestGDResponse.getPushedIndex();
+            energy[i] = bestPush.energy;
+            direction[i] = bestPush.direction;
+            collisionImminent = true;
+            nextCollision = time + bestGD.predictedTime;
+            return;
+        }
+
+        /*if (gdResp == null) {
             return;
         }
         GradientDescent gd = gdResp.getGd();
@@ -170,7 +219,7 @@ public class Player implements pb.sim.Player {
             collisionImminent = true;
             nextCollision = time + gd.predictedTime;
             return;
-        }
+        }*/
 
     }
 
@@ -200,11 +249,10 @@ public class Player implements pb.sim.Player {
         }
     }
 
-    private GD_Response doPushWithGradientDescent(Asteroid[] asteroids,
+    private GD_Response[] doPushWithGradientDescent(Asteroid[] asteroids,
                                                   double[] energy, double[] direction, int heaviestOrFathest) {
 
         double energyMultiplier = Utils.getEnergyMultiplier(pushes, maxPower, n_asteroid_At_Start, n_asteroids, time_limit, time, daysSinceCollision);
-
         closestPair = getClosestApproachToTargetWithinTime(asteroids, heaviestOrFathest, time);
         Asteroid a1 = asteroids[closestPair[0]];
         Asteroid a2 = asteroids[closestPair[1]];
@@ -216,11 +264,22 @@ public class Player implements pb.sim.Player {
             pushedIndex = closestPair[1];
         }
 
-        if (isAsteroidInRange(a1.mass > a2.mass ? a1 : a2, a1.mass > a2.mass ? a2 : a1) == false) {
-            return null;
+//        if (isAsteroidInRange(a1.mass > a2.mass ? a1 : a2, a1.mass > a2.mass ? a2 : a1) == false) {
+//            return null;
+//        }
+
+        GradientDescent gdOld = new GradientDescent(a1, a2, time, energyMultiplier * maxPower);
+        System.err.println("Push: " + time + " " + gdOld.tune());
+        //return new GD_Response(gd, pushedIndex);
+
+        Asteroid[] closestSet = getBestCollidingGroup(asteroids, heaviestOrFathest);
+        GD_Response[] responses = new GD_Response[closestSet.length];
+        Asteroid collideWith = asteroids[heaviestOrFathest];
+        for(int i = 0; i < closestSet.length; i++){
+            GradientDescent gd = new GradientDescent(closestSet[i], collideWith, time, energyMultiplier * maxPower);
+            responses[i] = new GD_Response(gd, heaviestOrFathest);
         }
 
-        GradientDescent gd = new GradientDescent(a1, a2, time, energyMultiplier * maxPower);
-        return new GD_Response(gd, pushedIndex);
+        return responses;
     }
 }

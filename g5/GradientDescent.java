@@ -6,8 +6,8 @@ import pb.sim.Orbit;
 import pb.sim.Point;
 
 public class GradientDescent {
-	Asteroid a;
-	Asteroid target;
+	public Asteroid a;
+	public Asteroid target;
 	long timeOfStart, predictedTime;
 	double maxEnergy;
 

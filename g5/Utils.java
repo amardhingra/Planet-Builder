@@ -41,13 +41,43 @@ public class Utils {
         Arrays.sort(hohmannAsteroids, new Comparator<Asteroid>() {
             @Override
             public int compare(Asteroid o1, Asteroid o2) {
+                if(o1.id == collideWith.id) return 1;
+                if(o2.id == collideWith.id) return -1;
                 return Double.compare(Hohmann.transfer(o1, collideWith.orbit.a),
-                        Hohmann.transfer(o1, collideWith.orbit.a));
+                        Hohmann.transfer(o2, collideWith.orbit.a));
             }
         });
 
         return hohmannAsteroids;
     }
+
+    public static int getClosestApproachToTargetWithinTime(Asteroid[] asteroids, int target, long time) {
+
+        double closestDist = Double.MAX_VALUE;
+        Asteroid a1, a2;
+        a1 = asteroids[target];
+        a2 = null;
+        int index = 0;
+        Point p1 = new Point(), p2 = new Point();
+        for (long t = 0; t <= 1000; ++t) {
+            a1.orbit.positionAt(time + t - a1.epoch, p1);
+            for (int i = 0; i < asteroids.length; ++i) {
+                if (i == target || asteroids[i] == null)
+                    continue;
+                a2 = asteroids[i];
+                a2.orbit.positionAt(time + t - a2.epoch, p2);
+                double dist = Point.distance(p1, p2);
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    a2 = asteroids[i];
+                    index = i;
+                }
+            }
+        }
+
+        return index;
+    }
+
 
     public static int findIndexOfAsteroid(Asteroid[] asteroids, long id){
         for(int i = 0; i < asteroids.length; i++){
@@ -94,6 +124,10 @@ public class Utils {
     public static double getEnergyMultiplier(ArrayList<Push> pushes, double maxEnergy,
                                              int initAsteroids, int n_asteroids,
                                              long time_limit, long time, int daysSinceCollision){
+
+        if(pushes.size() == 0){
+            return 0.33;
+        }
 
 
         double asteroidsRemaining = n_asteroids / (double) initAsteroids;
