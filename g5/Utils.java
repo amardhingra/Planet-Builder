@@ -92,35 +92,6 @@ public class Utils {
         return Math.sqrt(point.x * point.x + point.y + point.y);
     }
 
-    public static long asteroidsCollide(Asteroid a1, Asteroid a2, long currentTime, long within){
-        Point p1 = new Point();
-        Point p2 = new Point();
-
-        double tRadius = a1.radius() + a2.radius();
-        for(long time = currentTime; time < currentTime + within; ++time){
-
-            a1.orbit.positionAt(currentTime + time - a1.epoch, p1);
-            a2.orbit.positionAt(currentTime + time - a2.epoch, p2);
-
-            //System.out.println(p1);
-            //System.out.println(p2);
-            //System.out.println(Point.distance(p1, p2));
-            if(Point.distance(p1, p2) < tRadius)
-                return time + currentTime;
-        }
-
-        return currentTime;
-    }
-
-    public static long getLargestID(Asteroid[] asteroids){
-        long largest = -1;
-        for(Asteroid a:asteroids){
-            if(a.id > largest)
-                largest = a.id;
-        }
-        return largest;
-    }
-
     public static double getEnergyMultiplier(ArrayList<Push> pushes, double maxEnergy,
                                              int initAsteroids, int n_asteroids,
                                              long time_limit, long time, int daysSinceCollision){
