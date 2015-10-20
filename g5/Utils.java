@@ -125,7 +125,7 @@ public class Utils {
         double asteroidsRemaining = n_asteroids / (double) initAsteroids;
         double timeRemaining = (time_limit - time)/(double) time_limit;
 
-        double energyMultiplier = Math.sqrt(asteroidsRemaining) / Math.pow(timeRemaining, 2);
+        double energyMultiplier = asteroidsRemaining / Math.pow(timeRemaining, 2);
 
         if(pushes.size() > 0 && (time_limit - time)/365 > 100) {
             double totalEnergySpent = 0;

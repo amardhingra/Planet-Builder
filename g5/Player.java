@@ -11,7 +11,7 @@ import java.util.*;
 
 public class Player implements pb.sim.Player {
 
-    public static final int NUMBER_OF_COLLIDING_ASTEROIDS = 5;
+    public static final int NUMBER_OF_COLLIDING_ASTEROIDS = 10;
 
     // current time, time limit
     private long time = -1;

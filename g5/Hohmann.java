@@ -45,7 +45,7 @@ public class Hohmann {
                 energySum += transfer(asteroids[j], asteroids[i].orbit.a);
             }
 
-            energySum /= asteroids[i].mass;
+            energySum /= (asteroids[i].mass * asteroids[i].orbit.a);
 
             if(energySum < bestEnergy){
                 bestEnergy = energySum;
