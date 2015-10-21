@@ -180,7 +180,45 @@ public class Player implements pb.sim.Player {
         }
         
         int heaviest = 0;
-
+        
+        boolean sameOrbit=false;
+        
+        /**
+         * Handle the Asteroids appearing on same orbit
+         */
+        for(int i = 0 ; i< asteroids.length; i++){
+    		Asteroid a1=asteroids[i];
+    		for(int j = i+1 ; j< asteroids.length; j++){
+    			Asteroid a2=asteroids[j];
+    			if(a1.id==a2.id){
+    				continue;
+    			}
+    			//find nearest non overlapping orbit and its houghMan transform value;
+    			if(Math.abs(a1.orbit.a - a2.orbit.a) <Math.max(a1.radius(), a2.radius())
+    					|| Math.abs(a1.orbit.b - a2.orbit.b) <Math.max(a1.radius(), a2.radius())){
+    				Push p1;
+    				int index;
+    				/**
+    				 * push the one with lowest mass and velocity
+    				 */
+    				if(a1.mass < a2.mass){
+    					p1 = Utils.randomPush(a1, time);
+    					index=i;
+    				}else{
+    					p1 = Utils.randomPush(a2, time);
+    					index=j;
+    				}
+    				energy[index] = p1.energy;
+    		        direction[index] = p1.direction;
+    		        sameOrbit=true;
+    			}
+    		}
+    	}
+        
+        if(sameOrbit==true){
+        	return;
+        }
+        
         if(n_asteroid_At_Start == n_asteroids)
             heaviest = Hohmann.getLowestAverageHohmanTransfer(asteroids);
         else
@@ -196,6 +234,9 @@ public class Player implements pb.sim.Player {
             if(gdResp == null){
                 System.err.println("Returning?");
                 return;
+            }
+            if(response ==null ){
+            	continue;
             }
 //            GradientDescent gd = response.getGd();
             Push p = response.tuneGd();
@@ -244,10 +285,30 @@ public class Player implements pb.sim.Player {
         GD_Response[] responses = new GD_Response[closestSet.length];
         Asteroid collideWith = asteroids[heaviestOrFathest];
 
+        //Radius : collideWith
         // create a gradient descent response for each asteroid in the closest set list
         for(int i = 0; i < closestSet.length; i++) {
+        	if(closestSet[i] ==null)
+        		continue;
+        	/* Calculate the Hohmann Energy
+        	 * double maxHohmmannEnergy = Hohmann.transfer(sortedByRadius[sortedByRadius.length - 1], sortedByRadius[0].orbit.a);
+        	 * 
+        	 */
+        	/*
+        	 *Suns center is at point 0,0 and asteroids center is at (c_x, c_y) 
+        	 */
+        	double distanceBetweenAsteroidNSunCenter = Math.hypot(collideWith.orbit.c_x, collideWith.orbit.c_y);
+        	double nearestRadius = Math.max(collideWith.orbit.a,collideWith.orbit.b)  - distanceBetweenAsteroidNSunCenter;
+        	double farthestRadius  = Math.max(collideWith.orbit.a,collideWith.orbit.b)  + distanceBetweenAsteroidNSunCenter; 		
+        	double energyForNearestRadius = Hohmann.transfer(closestSet[i], nearestRadius);
+        	double energyForFarthestRadius = Hohmann.transfer(closestSet[i], farthestRadius);
+        	double finalEnergy=Math.min(energyMultiplier * maxPower, Math.max(energyForNearestRadius, energyForFarthestRadius) * (2+energyMultiplier));
+        	System.out.println("===========Older Energy Value  : " +  maxPower);
+        	System.out.println("Nearest Energy Value  : " +energyForNearestRadius);
+        	System.out.println("Farthest Energy Value  : " +energyForFarthestRadius);
             responses[i] = new GD_Response(closestSet[i], collideWith, pushTime,
-            		maxPower * energyMultiplier, Utils.findIndexOfAsteroid(asteroids, closestSet[i].id));
+            		 //Math.max(energyForNearestRadius, energyForFarthestRadius) * (2+energyMultiplier)
+            		finalEnergy, Utils.findIndexOfAsteroid(asteroids, closestSet[i].id));
         }
 
         return responses;
