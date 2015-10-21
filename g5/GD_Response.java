@@ -39,7 +39,7 @@ public class GD_Response {
 	}
 	
 	public void tunePushTime(long minTime) {
-		long delta = 300;
+		long delta = 100;
 		int numInDirection = 0;
 		while(delta > 1) {
 			if(Math.abs(numInDirection) > 4) {

@@ -33,7 +33,7 @@ public class Hohmann {
         return Math.atan2(p1.y, p1.x);
     }
 
-    public static int getLowestAverageHohmannTransfer(Asteroid[] asteroids){
+    public static int getLowestAverageHohmanTransfer(Asteroid[] asteroids){
 
         int bestIndex = -1;
         double bestEnergy = Double.MAX_VALUE;
@@ -42,13 +42,10 @@ public class Hohmann {
             double energySum = 0;
             for(int j = 0; j < asteroids.length; ++j){
                 if(i == j) continue;
-                if(asteroids[j].orbit.a < asteroids[i].orbit.a)
-                    energySum += transfer(asteroids[j], asteroids[i].orbit.a);
-                else
-                    energySum += reverseTransfer(asteroids[j], asteroids[i].orbit.a);
+                energySum += transfer(asteroids[j], asteroids[i].orbit.a);
             }
 
-            energySum /= (asteroids[i].mass * asteroids[i].orbit.a);
+            energySum /= asteroids[i].mass * asteroids[i].orbit.a;
 
             if(energySum < bestEnergy){
                 bestEnergy = energySum;
@@ -61,7 +58,7 @@ public class Hohmann {
 
     }
 
-    public static Push findTransferByTime(Asteroid asteroid, Asteroid collideWith, long currentTime, long collideWithin) {
+    public static Push findTransferByTime(Asteroid asteroid, Asteroid collideWith, long currentTime, long collideWithin){
 
         Push bestPush = null;
 
@@ -80,16 +77,10 @@ public class Hohmann {
 
                 // get the radius of the asteroid being collided with at the future time
                 collideWith.orbit.positionAt(time - collideWith.epoch, collideWithPosition);
-                double collideRadius = collideWithPosition.magnitude();
+                double collideRadius =  collideWith.orbit.a;
 
                 // calculate the energy required to move the second asteroid to that radius
-                double energy;
-                if(asteroid.orbit.a < collideWith.orbit.a) {
-                    energy = transfer(asteroid, collideRadius);
-                } else {
-                    energy = reverseTransfer(asteroid, collideRadius);
-                    direction = -direction;
-                }
+                double energy = transfer(asteroid, collideRadius);
 
                 // simulate the push
                 Asteroid pushed = Asteroid.push(asteroid, currentTime, energy, direction);
@@ -97,17 +88,20 @@ public class Hohmann {
                 // get the point at which the new asteroid will be at the future time
                 pushed.orbit.positionAt(time - pushed.epoch, asteroidPosition);
 
-                if (Point.distance(asteroidPosition, collideWithPosition) < rTotal)
-                    if (bestPush == null) {
-                        bestPush = new Push(energy, direction, time);
-                    } else if (energy < bestPush.energy) {
-                        bestPush = new Push(energy, direction, time);
-                    }
-            }
+                long days = Utils.asteroidsCollide(pushed, collideWith, currentTime, 3650);
+                if(days > currentTime){
 
-        } catch (Exception e) {
+                    if(bestPush == null){
+                        bestPush = new Push(energy, direction);
+                    } else if( energy < bestPush.energy ) {
+                        bestPush = new Push(energy, direction);
+                    }
+                }
+            }
+        } catch (Exception e ) {
             //e.printStackTrace();
         }
+
         return bestPush;
     }
 

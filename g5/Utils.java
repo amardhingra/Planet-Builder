@@ -8,8 +8,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 
 public class Utils {
-
-    public static final double MASS_PERCENT = 0.55;
+	public static final double MASS_PERCENT = 0.55;
 
     public static Asteroid[] sortByRadius(Asteroid[] asteroids){
 
@@ -24,23 +23,6 @@ public class Utils {
         return radiusAsteroids;
     }
 
-   
-    /**
-     * Does a Random push 
-     * @param a1
-     * @param time
-     * @return
-     */
-    public static Push randomPush(Asteroid a1, long time){
-    	Point vel = a1.orbit.velocityAt(time-a1.epoch);
-    	double asteroidEnergy = 0.5*vel.magnitude()*vel.magnitude()*a1.mass;
-    	//double maxPower=asteroidEnergy/10000;
-    	double curDir = Math.atan2(vel.y, vel.x);
-    	double pushDir = curDir ;
-    	double energy = asteroidEnergy/10000;
-    	return new Push(energy,pushDir);
-    } 
-    
     public static Asteroid[] sortByMass(Asteroid[] asteroids){
 
         Asteroid[] massAsteroids = Arrays.copyOf(asteroids, asteroids.length);
@@ -53,7 +35,7 @@ public class Utils {
 
         return massAsteroids;
     }
-
+    
     public static Asteroid[] sortByHohmannTransferEnergy(Asteroid[] asteroids, Asteroid collideWith){
 
         Asteroid[] hohmannAsteroids = Arrays.copyOf(asteroids, asteroids.length);
@@ -69,8 +51,7 @@ public class Utils {
                         Math.max(Hohmann.transfer(o2, collideWith.orbit.a + c), Hohmann.transfer(o2, collideWith.orbit.a - c)));
             }
         });
-
-
+        
         return hohmannAsteroids;
     }
 
@@ -90,8 +71,8 @@ public class Utils {
             i++;
         }
 
-        Asteroid[] toReturn = new Asteroid[i - 1];
-        for(int j = 1; j < i; j++){
+        Asteroid[] toReturn = new Asteroid[Math.max(i - 1, 1)];
+        for(int j = 1; j < toReturn.length+1; j++){
             toReturn[j - 1] = hohmannAsteroids[j];
         }
 
@@ -149,28 +130,11 @@ public class Utils {
             a1.orbit.positionAt(currentTime + time - a1.epoch, p1);
             a2.orbit.positionAt(currentTime + time - a2.epoch, p2);
 
-            //System.out.println(p1);
-            //System.out.println(p2);
-            //System.out.println(Point.distance(p1, p2));
             if(Point.distance(p1, p2) < tRadius)
                 return time + currentTime;
         }
 
         return currentTime;
-    }
-
-    public static double getHohmannEnergy(Asteroid toPush, Asteroid collideWith, double maxEnergy){
-
-        double energy;
-        double averageRadius = (collideWith.orbit.a + collideWith.orbit.b) / 2;
-
-        if(toPush.orbit.a > averageRadius){
-            energy =  Hohmann.reverseTransfer(toPush, averageRadius);
-        } else {
-            energy = Hohmann.transfer(toPush, averageRadius);
-        }
-
-        return 10 * energy;
     }
 
 
@@ -186,7 +150,7 @@ public class Utils {
         double asteroidsRemaining = n_asteroids / (double) initAsteroids;
         double timeRemaining = (time_limit - time)/(double) time_limit;
 
-        double energyMultiplier = asteroidsRemaining / Math.pow(timeRemaining, 2);
+        double energyMultiplier = Math.sqrt(asteroidsRemaining) / Math.pow(timeRemaining, 2);
 
         if(pushes.size() > 0 && (time_limit - time)/365 > 100) {
             double totalEnergySpent = 0;

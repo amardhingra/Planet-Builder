@@ -9,6 +9,9 @@ public class GradientDescent {
 	public Asteroid target;
 	long timeOfStart, predictedTime;
 	double maxEnergy;
+	
+	static int maxTries = 1;
+	static long timeSpent = 0;
 
 	public GradientDescent(Asteroid a, Asteroid target, long time, double maxEnergy) {
 		super();
@@ -24,18 +27,12 @@ public class GradientDescent {
 		double direction = 0;
 		double energy = varyEnergy(direction);
 		for(int i = 0; i < 3; ++i) {
-			//System.out.println(direction + "," + energy);
 			direction = varyDirection(energy);
 			energy = varyEnergy(direction);
 		}
-//		System.out.println(direction + "," + energy);
 		Asteroid pushed = Asteroid.push(a, timeOfStart, energy, direction);
 		predictedTime = getTimeOfClosestDistance(pushed, timeOfStart);
 		double dist = getClosestDistanceVaryTime(pushed, timeOfStart);
-//		System.out.println("DIST : "+dist);
-//		System.out.println("RAD  : "+(a.radius()+target.radius()));
-//		System.out.println("DELTA: "+getDistance(a, timeOfStart));
-//		System.out.println("TIME : "+predictedTime);
 		if(dist < a.radius() + target.radius()) {
 			return new Push(energy, direction);
 		}
@@ -47,10 +44,6 @@ public class GradientDescent {
 		int delta = 200;
 		long timeDel = 1000;
 		double current = getDistance(a, timeOfStart + timeDel);
-	/*	double intersection=OrbitUtils.getOrbitalIntersections(a.orbit,target.orbit);
-		if(intersection >1){
-			return Double.MAX_VALUE;
-		}*/
 		while(delta >= 1) {
 			double later = getDistance(a,timeOfStart + timeDel + delta);
 			double earlier = getDistance(a,timeOfStart + timeDel - delta);
@@ -151,7 +144,6 @@ public class GradientDescent {
 					delta = 0;
 			}
 		}
-//		System.out.println("DirectionCount: "+count);
 		return angleDel;
 	}
 	
@@ -174,9 +166,6 @@ public class GradientDescent {
 				Asteroid higher = Asteroid.push(a, timeOfStart, currentEnergy + delta, pushDirection);
 				dh = getClosestDistanceVaryTime(higher, timeOfStart);
 			} catch (InvalidOrbitException | NumberFormatException e) {
-//				System.out.println("push direction : " + pushDirection);
-				//e.printStackTrace();
-//				return currentEnergy	;
 				// do nothing;
 				dh = Double.MAX_VALUE;
 			}
@@ -184,9 +173,6 @@ public class GradientDescent {
 				Asteroid lower = Asteroid.push(a, timeOfStart, currentEnergy - delta, pushDirection);
 				dl = getClosestDistanceVaryTime(lower, timeOfStart);
 			} catch (InvalidOrbitException | NumberFormatException e) {
-//				System.out.println("push direction : " + pushDirection);
-				//e.printStackTrace();
-//				return currentEnergy;
 				// do nothing;
 				dl = Double.MAX_VALUE;
 			}
@@ -210,7 +196,6 @@ public class GradientDescent {
 				delta = currentEnergy/2;
 			}
 		}
-//		System.out.println("EnergyCount: "+count);
 		return currentEnergy;
 	}
 	
