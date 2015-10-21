@@ -186,7 +186,7 @@ public class Player implements pb.sim.Player {
         /**
          * Handle the Asteroids appearing on same orbit
          */
-        for(int i = 0 ; i< asteroids.length; i++){
+        /*for(int i = 0 ; i< asteroids.length; i++){
     		Asteroid a1=asteroids[i];
     		for(int j = i+1 ; j< asteroids.length; j++){
     			Asteroid a2=asteroids[j];
@@ -200,7 +200,7 @@ public class Player implements pb.sim.Player {
     				int index;
     				/**
     				 * push the one with lowest mass and velocity
-    				 */
+    				 
     				if(a1.mass < a2.mass){
     					p1 = Utils.randomPush(a1, time);
     					index=i;
@@ -213,7 +213,7 @@ public class Player implements pb.sim.Player {
     		        sameOrbit=true;
     			}
     		}
-    	}
+    	}*/
         
         if(sameOrbit==true){
         	return;
@@ -231,10 +231,7 @@ public class Player implements pb.sim.Player {
         long bestPushTime = 0;
         GD_Response bestGDResponse = null;
         for(GD_Response response : gdResp) {
-            if(gdResp == null){
-                System.err.println("Returning?");
-                return;
-            }
+            
             if(response ==null ){
             	continue;
             }
@@ -310,7 +307,7 @@ public class Player implements pb.sim.Player {
         	System.out.println("Farthest Energy Value  : " +energyForFarthestRadius);
             responses[i] = new GD_Response(closestSet[i], collideWith, pushTime,
             		 //Math.max(energyForNearestRadius, energyForFarthestRadius) * (2+energyMultiplier)
-            		finalEnergy, Utils.findIndexOfAsteroid(asteroids, closestSet[i].id));
+            		maxPower * energyMultiplier, Utils.findIndexOfAsteroid(asteroids, closestSet[i].id));
         }
 
         return responses;
