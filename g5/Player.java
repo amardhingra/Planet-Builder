@@ -12,7 +12,7 @@ import java.util.*;
 public class Player implements pb.sim.Player {
 
     public static final int NUMBER_OF_COLLIDING_ASTEROIDS = 10;
-    public static final int NUMBER_OF_DAYS_TO_SKIP = 50;
+    public static final int NUMBER_OF_DAYS_TO_SKIP = 300;
     // current time, time limit
     private long time = -1;
     private long time_limit;
