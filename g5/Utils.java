@@ -24,6 +24,23 @@ public class Utils {
         return radiusAsteroids;
     }
 
+   
+    /**
+     * Does a Random push 
+     * @param a1
+     * @param time
+     * @return
+     */
+    public static Push randomPush(Asteroid a1, long time){
+    	Point vel = a1.orbit.velocityAt(time-a1.epoch);
+    	double asteroidEnergy = 0.5*vel.magnitude()*vel.magnitude()*a1.mass;
+    	//double maxPower=asteroidEnergy/10000;
+    	double curDir = Math.atan2(vel.y, vel.x);
+    	double pushDir = curDir ;
+    	double energy = asteroidEnergy/10000;
+    	return new Push(energy,pushDir);
+    } 
+    
     public static Asteroid[] sortByMass(Asteroid[] asteroids){
 
         Asteroid[] massAsteroids = Arrays.copyOf(asteroids, asteroids.length);
