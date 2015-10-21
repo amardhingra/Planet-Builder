@@ -53,6 +53,7 @@ public class Utils {
             }
         });
 
+
         return hohmannAsteroids;
     }
 
@@ -67,14 +68,14 @@ public class Utils {
 
         int i = 0;
         double massSoFar = 0;
-        while(massSoFar/totalMass < MASS_PERCENT){
+        while(massSoFar/totalMass <= MASS_PERCENT){
             massSoFar += hohmannAsteroids[i].mass;
             i++;
         }
 
         Asteroid[] toReturn = new Asteroid[i - 1];
         for(int j = 1; j < i; j++){
-            toReturn[j - 1] = asteroids[j];
+            toReturn[j - 1] = hohmannAsteroids[j];
         }
 
         return toReturn;
