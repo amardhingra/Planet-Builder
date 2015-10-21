@@ -33,7 +33,7 @@ public class Hohmann {
         return Math.atan2(p1.y, p1.x);
     }
 
-    public static int getLowestAverageHohmanTransfer(Asteroid[] asteroids){
+    public static int getLowestAverageHohmannTransfer(Asteroid[] asteroids){
 
         int bestIndex = -1;
         double bestEnergy = Double.MAX_VALUE;
@@ -42,7 +42,10 @@ public class Hohmann {
             double energySum = 0;
             for(int j = 0; j < asteroids.length; ++j){
                 if(i == j) continue;
-                energySum += transfer(asteroids[j], asteroids[i].orbit.a);
+                if(asteroids[j].orbit.a < asteroids[i].orbit.a)
+                    energySum += transfer(asteroids[j], asteroids[i].orbit.a);
+                else
+                    energySum += reverseTransfer(asteroids[j], asteroids[i].orbit.a);
             }
 
             energySum /= (asteroids[i].mass * asteroids[i].orbit.a);

@@ -12,7 +12,7 @@ import java.util.*;
 public class Player implements pb.sim.Player {
 
     public static final int NUMBER_OF_COLLIDING_ASTEROIDS = 10;
-    public static final int NUMBER_OF_DAYS_TO_SKIP = 300;
+    public static final int NUMBER_OF_DAYS_TO_SKIP = 50;
     // current time, time limit
     private long time = -1;
     private long time_limit;
@@ -220,7 +220,7 @@ public class Player implements pb.sim.Player {
         }
         
         if(n_asteroid_At_Start == n_asteroids)
-            heaviest = Hohmann.getLowestAverageHohmanTransfer(asteroids);
+            heaviest = Hohmann.getLowestAverageHohmannTransfer(asteroids);
         else
             heaviest = getHeaviestAsteroid(asteroids);
 
