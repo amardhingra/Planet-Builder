@@ -297,7 +297,9 @@ public class Player implements pb.sim.Player {
         	/*
         	 *Suns center is at point 0,0 and asteroids center is at (c_x, c_y) 
         	 */
-        	double distanceBetweenAsteroidNSunCenter = Math.hypot(collideWith.orbit.c_x, collideWith.orbit.c_y);
+        	Point centerPoint = new Point();
+        	collideWith.orbit.center(centerPoint);
+        	double distanceBetweenAsteroidNSunCenter = Math.hypot(centerPoint.x, centerPoint.y);
         	double nearestRadius = Math.max(collideWith.orbit.a,collideWith.orbit.b)  - distanceBetweenAsteroidNSunCenter;
         	double farthestRadius  = Math.max(collideWith.orbit.a,collideWith.orbit.b)  + distanceBetweenAsteroidNSunCenter; 		
         	double energyForNearestRadius = Hohmann.transfer(closestSet[i], nearestRadius);
