@@ -185,6 +185,8 @@ public class Player implements pb.sim.Player {
             heaviest = Hohmann.getLowestAverageHohmanTransfer(asteroids);
         else
             heaviest = getHeaviestAsteroid(asteroids);
+
+
         GD_Response[] gdResp = doPushWithGradientDescent(asteroids, energy, direction, heaviest);
         Push bestPush = null;
         GradientDescent bestGD = null;
@@ -245,7 +247,7 @@ public class Player implements pb.sim.Player {
         // create a gradient descent response for each asteroid in the closest set list
         for(int i = 0; i < closestSet.length; i++) {
             responses[i] = new GD_Response(closestSet[i], collideWith, pushTime,
-            		energyMultiplier * maxPower, Utils.findIndexOfAsteroid(asteroids, closestSet[i].id));
+            		maxPower * energyMultiplier, Utils.findIndexOfAsteroid(asteroids, closestSet[i].id));
         }
 
         return responses;

@@ -112,6 +112,20 @@ public class Utils {
         return currentTime;
     }
 
+    public static double getHohmannEnergy(Asteroid toPush, Asteroid collideWith, double maxEnergy){
+
+        double energy;
+        double averageRadius = (collideWith.orbit.a + collideWith.orbit.b) / 2;
+
+        if(toPush.orbit.a > averageRadius){
+            energy =  Hohmann.reverseTransfer(toPush, averageRadius);
+        } else {
+            energy = Hohmann.transfer(toPush, averageRadius);
+        }
+
+        return 10 * energy;
+    }
+
 
     public static double getEnergyMultiplier(ArrayList<Push> pushes, double maxEnergy,
                                              int initAsteroids, int n_asteroids,
