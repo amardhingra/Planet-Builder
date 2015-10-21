@@ -9,6 +9,8 @@ import java.util.Comparator;
 
 public class Utils {
 
+    public static final double MASS_PERCENT = 0.55;
+
     public static Asteroid[] sortByRadius(Asteroid[] asteroids){
 
         Asteroid[] radiusAsteroids = Arrays.copyOf(asteroids, asteroids.length);
@@ -38,17 +40,44 @@ public class Utils {
     public static Asteroid[] sortByHohmannTransferEnergy(Asteroid[] asteroids, Asteroid collideWith){
 
         Asteroid[] hohmannAsteroids = Arrays.copyOf(asteroids, asteroids.length);
+        Point center = new Point();
+        collideWith.orbit.center(center);
+        double c = center.magnitude();
         Arrays.sort(hohmannAsteroids, new Comparator<Asteroid>() {
             @Override
             public int compare(Asteroid o1, Asteroid o2) {
-                if(o1.id == collideWith.id) return 1;
-                if(o2.id == collideWith.id) return -1;
-                return Double.compare(Hohmann.transfer(o1, collideWith.orbit.a),
-                        Hohmann.transfer(o2, collideWith.orbit.a));
+                if(o1.id == collideWith.id) return -1;
+                if(o2.id == collideWith.id) return 1;
+                return Double.compare(Math.max(Hohmann.transfer(o1, collideWith.orbit.a + c), Hohmann.transfer(o1, collideWith.orbit.a - c)),
+                        Math.max(Hohmann.transfer(o2, collideWith.orbit.a + c), Hohmann.transfer(o2, collideWith.orbit.a - c)));
             }
         });
 
         return hohmannAsteroids;
+    }
+
+    public static Asteroid[] getFirstHalfMass(Asteroid[] asteroids, int collideWith){
+
+        Asteroid[] hohmannAsteroids = sortByHohmannTransferEnergy(asteroids, asteroids[collideWith]);
+
+        double totalMass = 0;
+        for(Asteroid a:asteroids){
+            totalMass += a.mass;
+        }
+
+        int i = 0;
+        double massSoFar = 0;
+        while(massSoFar/totalMass < MASS_PERCENT){
+            massSoFar += hohmannAsteroids[i].mass;
+            i++;
+        }
+
+        Asteroid[] toReturn = new Asteroid[i - 1];
+        for(int j = 1; j < i; j++){
+            toReturn[j - 1] = asteroids[j];
+        }
+
+        return toReturn;
     }
 
     public static int getClosestApproachToTargetWithinTime(Asteroid[] asteroids, int target, long time) {

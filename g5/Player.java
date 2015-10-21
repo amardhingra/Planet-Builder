@@ -12,7 +12,7 @@ import java.util.*;
 public class Player implements pb.sim.Player {
 
     public static final int NUMBER_OF_COLLIDING_ASTEROIDS = 10;
-
+    public static final int NUMBER_OF_DAYS_TO_SKIP = 300;
     // current time, time limit
     private long time = -1;
     private long time_limit;
@@ -175,7 +175,7 @@ public class Player implements pb.sim.Player {
             return;
         }
         
-        if (time < lastFailedCheck + 5) {
+        if (time < lastFailedCheck + NUMBER_OF_DAYS_TO_SKIP) {
         	return;
         }
         
@@ -240,7 +240,7 @@ public class Player implements pb.sim.Player {
         long pushTime = time+3000;
         
         // get the closest set of asteroids
-        Asteroid[] closestSet = getBestCollidingGroup(asteroids, heaviestOrFathest, pushTime);
+        Asteroid[] closestSet = Utils.getFirstHalfMass(asteroids, heaviestOrFathest);//getBestCollidingGroup(asteroids, heaviestOrFathest, pushTime);
         GD_Response[] responses = new GD_Response[closestSet.length];
         Asteroid collideWith = asteroids[heaviestOrFathest];
 
