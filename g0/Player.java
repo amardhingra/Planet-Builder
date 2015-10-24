@@ -17,7 +17,7 @@ public class Player implements pb.sim.Player {
 	private long time_limit = -1;
 
 	// time until next push
-	private long time_of_push = 0;
+	private long time_of_push = Long.MAX_VALUE;
 
 	// number of retries
 	private int retries_per_turn = 1;

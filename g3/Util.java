@@ -15,6 +15,12 @@ import java.util.function.Function;
  */
 public class Util {
 
+    public static final double TWO_PI = 2 * Math.PI;
+
+    public static double normalizedAngle(double angle) {
+        return angle - TWO_PI * Math.floor((angle + Math.PI) / TWO_PI);
+    }
+
     /**
      * Creates a string with a time in years and days
      *
@@ -31,7 +37,7 @@ public class Util {
      * @param t_offset     the time from the original orbit
      * @param a            the asteroid whose period we are inspecting
      * @param current_time the minimum time
-     * @return
+     * @return next t after t_offset in a's orbit
      */
     public static long nextAfterTime(long t_offset, Asteroid a, long current_time) {
         long t = current_time % a.orbit.period() + t_offset;
@@ -47,8 +53,8 @@ public class Util {
      *
      * @param a            the first asteroid to collide
      * @param b            the second asteroid to collide
-     * @param initial_time
-     * @param max_time
+     * @param initial_time time to start searching from
+     * @param max_time     time to stop search at
      * @return -1 if collision not found, otherwise, time of collision
      */
     public static long findCollision(Asteroid a, Asteroid b, long initial_time, long max_time) {
@@ -61,14 +67,32 @@ public class Util {
             longer_orbit = a;
         }
 
-        List<Long> potential_intersection_points = op.intersections();
+        Point p1 = new Point(), p2 = new Point();
+
+        if (max_time - initial_time < shorter_orbit.orbit.period()) {
+            for (long t = initial_time; t < max_time; ++t) {
+                positionAt(shorter_orbit, t, p1);
+                positionAt(longer_orbit, t, p2);
+                double dist = Point.distance(p1, p2);
+                if (dist < op.collision_distance) {
+                    return t;
+                }
+            }
+        }
+
+        List<Long> potential_intersection_points;
+
+        try {
+            potential_intersection_points = op.intersections();
+        } catch (OutOfMemoryError e) {
+            OrbitPair.intersection_cache.clear();
+            potential_intersection_points = op.intersections();
+        }
 
         // potential_intersection_points now contains up to num_intersections points to check
         // points in potential_intersection_points are not epoch-adjusted
         long base_offset = initial_time + shorter_orbit.epoch;
         long T = op.shorter_orbit.period();
-
-        Point p1 = new Point(), p2 = new Point();
 
         while (base_offset < max_time) {
             for (Long intersection_point : potential_intersection_points) {
@@ -90,8 +114,8 @@ public class Util {
     /**
      * Computes the eccentricity of an asteroid
      *
-     * @param a
-     * @return
+     * @param a the asteroid
+     * @return its eccentricity
      */
     public static double eccentricity(Asteroid a) {
         return Math.sqrt(1 - Math.pow(a.orbit.b / a.orbit.a, 2));
@@ -103,19 +127,10 @@ public class Util {
      * @param start initial value of long
      * @param end   one more than last value of long
      * @param f     f: long -> double
-     * @return
+     * @return value of long that maximizes f
      */
     public static long findArgMax(long start, long end, Function<Long, Double> f) {
-        long idx = start;
-        double maxval = Double.MIN_VALUE;
-        for (long l = start; l < end; ++l) {
-            double test = f.apply(l);
-            if (test > maxval) {
-                maxval = test;
-                idx = l;
-            }
-        }
-        return idx;
+        return findArgMin(start, end, (x) -> -f.apply(x));
     }
 
     /**
@@ -124,7 +139,7 @@ public class Util {
      * @param start initial value of long
      * @param end   one more than last value of long
      * @param f     f: long -> double
-     * @return
+     * @return value of long which minimizes f
      */
     public static long findArgMin(long start, long end, Function<Long, Double> f) {
         long idx = start;
@@ -140,12 +155,45 @@ public class Util {
     }
 
     /**
+     * Computes the argmin of f from i=start to i=end
+     *
+     * @param start initial value of int
+     * @param end   one more than last value of int
+     * @param f     f: int -> double
+     * @return value of int which minimizes f
+     */
+    public static int findArgMinI(int start, int end, Function<Integer, Double> f) {
+        int idx = start;
+        double minval = Double.MAX_VALUE;
+        for (int l = start; l < end; ++l) {
+            double test = f.apply(l);
+            if (test < minval) {
+                minval = test;
+                idx = l;
+            }
+        }
+        return idx;
+    }
+
+    /**
+     * Computes the argmax of f from i=start to i=end
+     *
+     * @param start initial value of long
+     * @param end   one more than last value of long
+     * @param f     f: long -> double
+     * @return value of long that maximizes f
+     */
+    public static int findArgMaxI(int start, int end, Function<Integer, Double> f) {
+        return findArgMinI(start, end, (x) -> -f.apply(x));
+    }
+
+    /**
      * Computes the min of f from i=start to i=end
      *
      * @param start initial value of long
      * @param end   one more than last value of long
      * @param f     f: long -> double
-     * @return
+     * @return minimum value of f
      */
     public static double findMin(long start, long end, Function<Long, Double> f) {
         long idx = findArgMin(start, end, f);
@@ -159,7 +207,7 @@ public class Util {
      * @param start initial value of long
      * @param end   one more than last value of long
      * @param f     f: long -> double
-     * @return
+     * @return maximum value of f
      */
     public static double findMax(long start, long end, Function<Long, Double> f) {
         long idx = findArgMax(start, end, f);
@@ -357,8 +405,8 @@ public class Util {
         }
     }
 
-    public static class Push implements Comparable<Push> {
-        public int asteroid_idx;
+    public static class Push {
+        public Asteroid asteroid;
         public long push_time;
         public long expected_collision_time;
         public double energy;
@@ -366,39 +414,36 @@ public class Util {
         public double mass;
         private Asteroid _simulated;
 
-        public Push(Asteroid a, int aidx, long pt, double e) {
+        public Push(Asteroid a, long pt, double e) {
             double dir = a.orbit.velocityAt(pt - a.epoch).direction();
             if (e < 0) {
                 dir += Math.PI;
             }
-            init(aidx, pt, Math.abs(e), dir, a.mass);
+            init(a, pt, Math.abs(e), dir, a.mass);
         }
 
-        public Push(int aidx, long pt, double e, double d, double m) {
-            init(aidx, pt, e, d, m);
+        public Push(Asteroid a, long pt, double e, double d, double m) {
+            init(a, pt, e, d, m);
         }
 
         public static Push add(Push a, Push b) {
-            if (a.asteroid_idx != b.asteroid_idx || a.push_time != b.push_time || a.mass != b.mass) {
+            if (a.asteroid.id != b.asteroid.id || a.push_time != b.push_time || a.mass != b.mass) {
                 throw new RuntimeException("Adding incompatible pushes");
             }
-            double double_root_m_times_v_a = Math.sqrt(a.energy);
-            double double_root_m_times_v_b = Math.sqrt(b.energy);
-            double dxa = Math.cos(a.direction) * double_root_m_times_v_a;
-            double dya = Math.sin(a.direction) * double_root_m_times_v_a;
-            double dxb = Math.cos(b.direction) * double_root_m_times_v_b;
-            double dyb = Math.sin(b.direction) * double_root_m_times_v_b;
-            double dx = dxa + dxb;
-            double dy = dya + dyb;
+            double v_a_mag = Math.sqrt((2 * a.energy) / a.mass);
+            double v_b_mag = Math.sqrt((2 * b.energy) / b.mass);
 
-            double E = dx * dx + dy * dy;
+            double dx = Math.cos(a.direction) * v_a_mag + Math.cos(b.direction) * v_b_mag;
+            double dy = Math.sin(a.direction) * v_a_mag + Math.sin(b.direction) * v_b_mag;
+
+            double E = 0.5 * a.mass * (dx * dx + dy * dy);
             double direction = Math.atan2(dy, dx);
 
-            return new Push(a.asteroid_idx, a.push_time, E, direction, a.mass);
+            return new Push(a.asteroid, a.push_time, E, direction, a.mass);
         }
 
-        private void init(int aidx, long pt, double e, double d, double m) {
-            asteroid_idx = aidx;
+        private void init(Asteroid a, long pt, double e, double d, double m) {
+            asteroid = a;
             push_time = pt;
             energy = e;
             direction = d;
@@ -407,21 +452,16 @@ public class Util {
             expected_collision_time = -1;
         }
 
-        public Asteroid simulatedAsteroid(Asteroid a[]) {
+        public Asteroid simulatedAsteroid() {
             if (_simulated == null) {
-                _simulated = Asteroid.push(a[asteroid_idx], push_time, energy, direction);
+                _simulated = Asteroid.push(asteroid, push_time, energy, direction);
             }
             return _simulated;
         }
 
         public String toString() {
             return String.format("Push: asteroid %d on %s with energyAtTime %6.3e in direction %.02f deg",
-                    asteroid_idx, toYearString(push_time), energy, Math.toDegrees(direction));
-        }
-
-        @Override
-        public int compareTo(Push o) {
-            return (int) (push_time - o.push_time);
+                    asteroid.id, toYearString(push_time), energy, Math.toDegrees(direction));
         }
     }
 

@@ -1,40 +1,20 @@
 package pb.g6;
 
 import pb.sim.Point;
-//import pb.sim.Orbit;
 import pb.sim.Asteroid;
-//import pb.sim.InvalidOrbitException;
 
 import java.util.ArrayList;
+import java.util.Collections;
 
-/**
- * Example usage:
- * Collision collision = new Collision(asteroids);
- * for allKindsOfPush:
- * collision.updateAsteroid(0, pushedAsteroid);
- * nearestTime = collision.findCollisionTime(asteroidIndex1, asteroidIndex2);
- */
 public class Collision {
-    public final long TIME_LIMIT = 1000 * 24 * 60 * 60;
     public Asteroid[] asteroids;
-    public int curPos;  // position of the current push
-    public Asteroid oriAsteroid;
-    public final double DELTA = 10;
+    long time = 0;
+    long time_limit = 0;
 
-    public Collision(Asteroid[] asteroids) {
-        this.asteroids = asteroids;  // is shallow copy good enough?
-        oriAsteroid = null;
-    }
-
-    public void updateAsteroid(int pushedAsteroidPos, Asteroid pushedAsteroid) {
-        if (oriAsteroid != null) {
-            // reverse the previous push
-            asteroids[curPos] = oriAsteroid;
-        }
-        assert pushedAsteroidPos < asteroids.length : "Failure message";
-        curPos = pushedAsteroidPos;
-        oriAsteroid = asteroids[curPos];
-        asteroids[curPos] = pushedAsteroid;
+    public Collision(Asteroid[] asteroids, long time, long time_limit) {
+        this.asteroids = asteroids;
+        this.time = time;
+        this.time_limit = time_limit;
     }
 
     public Point[] getFoci(double a, double b, double A, double h, double k) {
@@ -68,7 +48,7 @@ public class Collision {
     }
 
     public ArrayList<ArrayList<Point>> findIntersection(Asteroid a, int ignore_idx) {
-        ArrayList<ArrayList<Point>> intersect = new ArrayList<ArrayList<Point>>(asteroids.length);
+        ArrayList<ArrayList<Point>> intersects = new ArrayList<>(asteroids.length);
 
         Ellipse[] ellipses = new Ellipse[asteroids.length];
 
@@ -78,8 +58,8 @@ public class Collision {
         Point c1 = a.orbit.center();
 
         for (int i = 0; i < asteroids.length; i++) {
-            ArrayList<Point> inner = new ArrayList<Point>();
-            intersect.add(inner);
+            ArrayList<Point> inner = new ArrayList<>();
+            intersects.add(inner);
 
             double a2 = asteroids[i].orbit.a;
             double b2 = asteroids[i].orbit.b;
@@ -90,9 +70,8 @@ public class Collision {
             ellipses[i] = new Ellipse(a2, b2, A2, c2.x, c2.y, f);
         }
 
-
         Point p = null;
-        for (double angle = 0; angle < 360; angle += 0.2d) {
+        for (double angle = 0; angle < 360; angle += 0.1d) {
             p = findPoint(a1, b1, A1, c1.x, c1.y, angle);
             for (int i = 0; i < asteroids.length; i++) {
                 if (i == ignore_idx) {
@@ -108,105 +87,112 @@ public class Collision {
                 if (ellipses[i].foci.length == 0) {
                     throw new Error();
                 } else if (ellipses[i].foci.length == 1) {
-                    if (sum > ellipses[i].a - radius && sum < ellipses[i].a + radius) {
-                        intersect.get(i).add(p);
+                    if (sum > ellipses[i].a - (radius/16) && sum < ellipses[i].a + (radius/16)) {
+                        intersects.get(i).add(p);
                     }
                 } else {
-                    if (sum > 2 * ellipses[i].a - radius && sum < 2 * ellipses[i].a + radius) {
-                        intersect.get(i).add(p);
+                    if (sum > 2 * ellipses[i].a - (radius/16) && sum < 2 * ellipses[i].a + (radius/16)) {
+                        intersects.get(i).add(p);
                     }
                 }
             }
         }
 
-        return intersect;
+        return intersects;
     }
 
-    /**
-     * Find time of asteroid at position p
-     */
-    public long timeAt(Asteroid a, Point p) {
-        long res;
-        long period = a.orbit.period();
-        Point curPos = new Point();
-        a.orbit.positionAt(0, curPos);
-        double curAngle = Math.atan2(curPos.y, curPos.x);
-        double lastAngle;
-        double pAngle = Math.atan2(p.y, p.x);
+    public long findCollision(Asteroid a, int ignore_idx) {
+        ArrayList<ArrayList<Point>> intersects = findIntersection(a, ignore_idx);
+        ArrayList<Long> collisions = new ArrayList<>();
 
-        long dt = period / 2;
-        long t = 0;
-        System.out.println("==================================================");
-        while (Point.distance(curPos, p) > a.radius()) {
-            // System.out.println("pAngle " + pAngle);
-            lastAngle = curAngle;
-            System.out.println("try " + dt);
-            System.out.println("dist " + Point.distance(curPos, p));
-            // jump
-            t += dt;
-            a.orbit.positionAt(t, curPos);
-            curAngle = Math.atan2(curPos.y, curPos.x);
-            // System.out.println("try " + curPos);
+        for (int i = 0; i < intersects.size(); i++) {
+            if (i == ignore_idx) continue;
 
-            if ((lastAngle*curAngle >= 0 && (curAngle-pAngle)*(lastAngle-pAngle) <= 0)
-                    || lastAngle*curAngle < 0 && (curAngle-pAngle)*(lastAngle-pAngle) >= 0) {
-                if (dt == 1 || dt == 0) {
-                    System.err.println("timeAt error");
+            ArrayList<Long> bicols = new ArrayList<>();
+
+            ArrayList<Long> dts_f = timeAt(a, intersects.get(i));
+            long period_f = a.orbit.period();
+            ArrayList<Long> dts_g = timeAt(asteroids[i], intersects.get(i));
+            long period_g = asteroids[i].orbit.period();
+
+            for (int j = 0; j < intersects.get(i).size(); j++) {
+                long f = 0;
+                long time_f = dts_f.get(j) + f * period_f;
+
+                while (time + time_f < time_limit) {
+                    long g = 0;
+                    long time_g = dts_g.get(j) + g * period_g;
+
+                    while (time_g < time_f) {
+                        g++;
+                        time_g = dts_g.get(j) + g * period_g;
+                    }
+
+                    if (time_g == time_f) {
+                        bicols.add(time_g);
+                        break;
+                    }
+
+                    f++;
+                    time_f = dts_f.get(j) + f * period_f;
                 }
-                // if pass by the point, get the last time
-                t -= dt; // come back to before jumping
-                dt /= 2;
+            }
+
+            if (bicols.size() != 0) {
+                collisions.add(Collections.min(bicols));
             }
         }
-        System.err.println("timeAt found");
-        return t;
+        if (collisions.size() != 0) {
+            return Collections.min(collisions);
+        } else {
+            return 0;
+        }
     }
 
-    /**
-     * Find collision time when push asteroids[ignore_idx] to the state of asteroid a
-     * @return list of all collision time under TIME_LIMIT.
-     */
-    public ArrayList<Long> findCollisionTime(Asteroid a, int ignore_idx) {
-        ArrayList<ArrayList<Point>> intersect = findIntersection(a, ignore_idx);
-        ArrayList<Long> collision = new ArrayList<Long>();
-        long t1, t2, k1, k2, period1, period2, colTime;
+    public ArrayList<Long> timeAt(Asteroid a, ArrayList<Point> pts) {
+        ArrayList<Long> dts = new ArrayList<>(pts.size());
 
-//        System.out.println("======================findCollisionTime============================");
+        for (Point p : pts) {
+            long t0 = 0;
+            Double dist = Point.distance(p, a.orbit.positionAt(time + t0 - a.epoch));
+            long step = a.orbit.period() / 4;
+            while (dist > a.radius()) {
+                Double[] trials = new Double[2];
+                trials[0] = Point.distance(p, a.orbit.positionAt(time + (t0 + step) - a.epoch));
+                trials[1] = Point.distance(p, a.orbit.positionAt(time + (t0 - step) - a.epoch));
+                if (trials[0] <= trials[1]) {
+                    if (trials[0] > dist) {
+                        if (step == 1) {
+                            break;
+                        }
+                        long tmp = step / 2;
+                        step = tmp < 1 ? 1 : tmp;
+                        continue;
+                    }
 
-        for (int i = 0; i < intersect.size(); i++) {
-            if (i == ignore_idx) {
-                continue;
+                    t0 += step;
+                    dist = trials[0];
+                } else {
+                    if (trials[1] > dist) {
+                        if (step == 1) {
+                            break;
+                        }
+                        long tmp = step / 2;
+                        step = tmp < 1 ? 1 : tmp;
+                        continue;
+                    }
+
+                    t0 -= step;
+                    dist = trials[1];
+                }
+
             }
-
-            // find all collisions between a and asteroids[i]
-            period1 = a.orbit.period();
-            period2 = asteroids[i].orbit.period();
-            for (int j = 0; j < intersect.get(i).size(); j++) {
-                Point p = intersect.get(i).get(j);
-
-                System.out.println("======================intersect point .x============================" + p.x);
-                System.out.println("======================intersect point .y============================" + p.y);
-                t1 = timeAt(a, p);
-                t2 = timeAt(asteroids[i], p);
-                System.err.println("  t1: " + t1);
-                System.err.println("  t2: " + t2);
-                System.out.println(t1 + " " + t2);
-                k2 = 1;
-                // find int values of k1 and k2 such that t1 + k1*period1 = t2 + k2*period2
-                do {
-                    k1 = (k2*period2 + t2 - t1) / (long)period1;
-                    ++k2;
-                } while (k2 < (TIME_LIMIT/period2) && Math.round(k1) != k1);
-
-                colTime = t1 + k1*period1;
-                System.err.println("Collision between " + ignore_idx + " & " + i);
-                System.err.println("  Year: " + (1 + colTime / 365));
-                System.err.println("  Day: " + (1 + colTime % 365));
-                collision.add(colTime);
+            if (t0 < 0) {
+                t0 = a.orbit.period() + t0;
             }
+            dts.add(t0);
         }
-
-        return collision;
+        return dts;
     }
 }
 

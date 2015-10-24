@@ -6,10 +6,10 @@ public class Utils {
     /**
      * Returns index of asteroid of largest radius.
      */
-    public static int largestRadius(Asteroid[] asteroids) {
+    public static int largestOrbitRadius(Asteroid[] asteroids) {
         int largest = 0;
         for (int i = 1; i < asteroids.length; i++) {
-            if (asteroids[i].radius() > asteroids[largest].radius()) {
+            if (asteroids[i].orbit.a > asteroids[largest].orbit.a) {
                 largest = i;
             }
         }
@@ -24,5 +24,40 @@ public class Utils {
             }
         }
         return largest;
+    }
+
+    public static double mean(Asteroid[] asteroids) {
+        double mean = 0;
+        for (int i = 0; i < asteroids.length; i++) {
+            mean += asteroids[i].mass;
+        }
+        return mean/asteroids.length;
+    }
+
+    public static double stddev(Asteroid[] asteroids, double mean) {
+        double stddev = 0;
+        for (int i = 0; i < asteroids.length; i++) {
+            stddev += Math.pow((mean - asteroids[i].mass), 2);
+        }
+        return Math.sqrt(mean/asteroids.length);
+    }
+
+    public static Asteroid findAsteroidById(Asteroid[] asteroids, long id) {
+        for (Asteroid a : asteroids) {
+            if (a.id == id) {
+                return a;
+            }
+        }
+        return null;
+    }
+
+    public static int findAsteroidIndexById(Asteroid[] asteroids, long id) {
+        for (int i=0; i<asteroids.length; i++) {
+            Asteroid a = asteroids[i];
+            if (a.id == id) {
+                return i;
+            }
+        }
+        return -1;
     }
 }

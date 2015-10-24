@@ -40,6 +40,10 @@ class Simulator {
 		double[] asteroid_mass = null;
 		// CPU time in ms
 		long cpu_time = 0;
+		// tournament mode
+		PrintStream query_log_file = null;
+		int game_id = -1;
+		int map_id = -1;
 		// the player
 		Class <Player> player = null;
 		String group = "g0";
@@ -106,7 +110,17 @@ class Simulator {
 				} else if (args[a].equals("--gui-fast-forward")) {
 					gui_fast_forward = true;
 					gui = true;
+				} else if (args[a].equals("--tournament")) {
+					if (a + 3 >= args.length)
+						throw new IllegalArgumentException("Invalid tournament options");
+					map_id  = Integer.parseInt(args[++a]);
+					game_id = Integer.parseInt(args[++a]);
+					query_log_file = new PrintStream(new FileOutputStream(args[++a], true));
+					String sep = File.separator;
+					state_file_path = root + sep + "map" + sep + map_id + ".txt";
 				} else throw new IllegalArgumentException("Unknown argument: " + args[a]);
+			if (query_log_file != null && gui)
+				throw new IllegalArgumentException("Tournament mode with GUI enabled");
 			// load player
 			player = load(group);
 			// figure out where to get input from
@@ -118,6 +132,8 @@ class Simulator {
 				int asteroids = asteroid_position.length;
 				System.err.println("Loaded asteroids from state file");
 			} else {
+				if (query_log_file != null)
+					throw new IllegalArgumentException("Tournament mode loads state");
 				// generate random orbits
 				int asteroids = random_asteroids < 0 ? default_asteroids
 				                                     :  random_asteroids;
@@ -181,6 +197,13 @@ class Simulator {
 			System.err.println("GUI planets: " +
 			                   (gui_planets ? "yes" : "no"));
 		}
+		if (query_log_file != null) {
+			System.err.println("Tournament mode!");
+			System.err.println("Map: " + state_file_path);
+			System.err.println("Game id: " + game_id);
+			System.err.close();
+			System.out.close();
+		}
 		Info info = null;
 		try {
 			info = game(group, player, asteroid_position, asteroid_mass,
@@ -196,40 +219,70 @@ class Simulator {
 			System.err.println("An internal error occured during the simulation ...");
 			System.exit(1);
 		}
-		double mass_ratio_beg = info.max_mass_beg * 100.0 / info.sum_mass;
-		double mass_ratio_end = info.max_mass_end * 100.0 / info.sum_mass;
-		System.err.println("Game time: " + info.game_time + " \"days\"");
-		System.err.println("CPU time: " + info.cpu_time / 1.0e9 + " seconds");
-		System.err.println("CPU timeout: " + (info.cpu_timeout ? "yes" : "no"));
-		System.err.println("Planet built: " + (info.planet_built ? "yes" : "no"));
-		System.err.println("Mass: " + mass_ratio_beg + "% -> " + mass_ratio_end + "%");
-		System.err.println("Energy: " + info.sum_energy + " Joules");
+		double sum_energy = 0.0;
+		for (int i = 0 ; i != info.pushes.length ; ++i)
+			sum_energy += info.pushes[i].energy;
+		if (query_log_file == null) {
+			double mass_ratio_beg = info.max_mass_beg * 100.0 / info.sum_mass;
+			double mass_ratio_end = info.max_mass_end * 100.0 / info.sum_mass;
+			System.err.println("Game time: " + info.game_time + " / " + game_time_limit + " \"days\"");
+			System.err.println("CPU time: " + info.cpu_time_ns / 1.0e9 + " seconds");
+			System.err.println("CPU timeout: " + (info.cpu_timeout ? "yes" : "no"));
+			System.err.println("Pushes: " + info.pushes.length);
+			System.err.println("Mass: " + mass_ratio_beg + "% -> " + mass_ratio_end + "%");
+			System.err.println("Energy: " + sum_energy + " Joules");
+		} else {
+			double max_mass_ratio = info.max_mass_end * 100.0 / info.sum_mass;
+			query_log_file.println("insert into game values");
+			query_log_file.println("(" + game_id +
+			                       "," + "'" + group + "'" +
+			                       "," + map_id +
+			                       "," + game_time_limit +
+			                       "," + info.game_time +
+			                       "," + sum_energy +
+			                       "," + max_mass_ratio +
+			                       "," + info.cpu_time_ns / 1.0e9 +
+			                       "," + (info.cpu_timeout ? "'yes');" : "'no');"));
+			if (info.pushes.length != 0)
+				query_log_file.println("insert into push values");
+			for (int i = 0 ; i != info.pushes.length ; ++i) {
+				query_log_file.println("(" + (i + 1) +
+				                       "," + game_id +
+				                       "," + info.pushes[i].year +
+				                       "," + info.pushes[i].day +
+				                       "," + info.pushes[i].energy +
+				                       "," + info.pushes[i].direction +
+				                       "," + info.pushes[i].position_x +
+				                       "," + info.pushes[i].position_y +
+				                       ")" + (i + 1 == info.pushes.length ? ";" : ","));
+			}
+			query_log_file.close();
+		}
 		System.exit(0);
 	}
 
 	// game result
 	private static class Info {
 
-		public final double sum_energy;
 		public final double sum_mass;
 		public final double max_mass_beg;
 		public final double max_mass_end;
 		public final long game_time;
-		public final long cpu_time;
+		public final long cpu_time_ns;
 		public final boolean cpu_timeout;
-		public final boolean planet_built;
+		public final Push[] pushes;
 
-		public Info(double s_e, double s_m, double m_m_b, double m_m_e,
-		            long g_t, long c_t, boolean c_to, boolean p_b)
+		public Info(double s_m, double m_m_b, double m_m_e,
+		            long g_t, long c_t, boolean c_to,
+		            Collection <Push> p)
 		{
-			sum_energy = s_e;
 			sum_mass = s_m;
 			max_mass_beg = m_m_b;
 			max_mass_end = m_m_e;
 			game_time = g_t;
-			cpu_time = c_t;
+			cpu_time_ns = c_t;
 			cpu_timeout = c_to;
-			planet_built = p_b;
+			pushes = p.toArray(new Push [0]);
 		}
 	}
 
@@ -331,15 +384,18 @@ class Simulator {
 				direction[i] = Double.NaN;
 			}
 			// count remaining time
+			long cpu_time_remaining = 0;
 			if (cpu_time > 0) {
-				cpu_time -= timer.time() / 1000000;
-				if (cpu_time <= 0) cpu_timeout = true;
+				long cpu_time_elapsed = timer.time() / 1000000;
+				cpu_time_remaining = cpu_time - cpu_time_elapsed;
+				if (cpu_time_remaining <= 0) cpu_timeout = true;
 			}
 			// call the play() method of the player
 			final Asteroid[] a_final = asteroids_copy;
 			final double[] e_final = energy;
 			final double[] d_final = direction;
-			if (cpu_timeout == false) try {
+			try {
+				if (cpu_timeout) throw new TimeoutException();
 				timer.call(new Callable <Object> () {
 
 					public Object call()
@@ -347,7 +403,7 @@ class Simulator {
 						player.play(a_final, e_final, d_final);
 						return null;
 					}
-				}, cpu_time);
+				}, cpu_time_remaining);
 			} catch (TimeoutException e) {
 				System.err.println("CPU timeout during play()");
 				energy = new double [asteroids.length];
@@ -379,13 +435,19 @@ class Simulator {
 				}
 				sum_energy += energy[i];
 				game_time_of_last_event = game_time;
-				pushes.add(new Push(energy[i], game_time));
+				long t = game_time - asteroids[i].epoch;
+				Point l = asteroids[i].orbit.positionAt(t);
+				Push p = new Push(energy[i], direction[i], game_time, l);
+				pushes.add(p);
 				if (log_file_path == null) continue;
 				PrintStream log_file = new PrintStream(new FileOutputStream(
 				                                       log_file_path, true));
-				log_file.println("" + (game_time / 365 + 1) + ", " +
-				                      (game_time % 365 + 1) + ", " +
-				                      energy[i] + ", " + direction[i]);
+				log_file.println("" + p.year + ", " +
+				                      p.day + ", " +
+				                      p.energy + ", " +
+				                      p.direction + ", " +
+				                      p.position_x + ", " +
+				                      p.position_y);
 				log_file.close();
 			}
 			// check for collisions of asteroids
@@ -449,10 +511,8 @@ class Simulator {
 		if (max_mass_beg + max_mass_beg <= sum_mass)
 			planet_built = max_mass_end + max_mass_end > sum_mass;
 		// return all info
-		return new Info(sum_energy, sum_mass,
-		                max_mass_beg, max_mass_end,
-		                game_time, timer.time(),
-		                cpu_timeout, planet_built);
+		return new Info(sum_mass, max_mass_beg, max_mass_end, game_time,
+		                timer.time(), cpu_timeout, pushes);
 	}
 
 	// remove null Asteroid objects and compact
@@ -564,12 +624,20 @@ class Simulator {
 	private static class Push {
 
 		public final double energy;
-		public final long game_time;
+		public final double direction;
+		public final long day;
+		public final long year;
+		public final double position_x;
+		public final double position_y;
 
-		public Push(double energy, long game_time)
+		public Push(double energy, double dir, long time, Point position)
 		{
 			this.energy = energy;
-			this.game_time = game_time;
+			direction = dir;
+			day  = time % 365 + 1;
+			year = time / 365 + 1;
+			position_x = position.x;
+			position_y = position.y;
 		}
 	}
 
@@ -631,7 +699,9 @@ class Simulator {
 		if (i < 0) i = 0;
 		while (i != pushes.size()) {
 			Push u = pushes.get(i++);
-			buf.append("\n" + human_power(u.energy, 2) + ", " + u.game_time);
+			buf.append("\n" + human_power(u.energy, 2) +
+			           ", " + u.year +
+			           ", " + u.day);
 		}
 		return buf.toString();
 	}

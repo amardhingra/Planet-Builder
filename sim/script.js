@@ -125,11 +125,14 @@ function process(data)
 	}
 	ctx.font = "12px Arial";
 	for (var i = planets + asteroids + 1 ; i != data.length ; ++i) {
+		if (data[i].length != 3)
+			throw "Invalid push format";
 		var energy = data[i][0].trim();
-		var time = parse_integer(data[i][1]);
+		var year = parse_integer(data[i][1]);
+		var day = parse_integer(data[i][2]);
 		var y = 37 + 13.5 * (i - planets - asteroids - 1);
-		ctx.fillText(Math.floor(1 + time / 365), x, y);
-		ctx.fillText(1 + (time % 365), x + 40, y);
+		ctx.fillText(year, x, y);
+		ctx.fillText(day, x + 40, y);
 		ctx.fillText(energy + " J", x + 80, y);
 	}
 	return refresh;
